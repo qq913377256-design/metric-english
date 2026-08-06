@@ -25,7 +25,7 @@
         <span class="status-divider" aria-hidden="true"></span>
         <span id="headerProgress">完成 0 / 10</span>
       </div>
-      <button class="menu-button" id="menuButton" type="button" aria-controls="sidebar" aria-expanded="false">资料库</button>
+        <button class="menu-button" id="menuButton" type="button" aria-controls="sidebar" aria-expanded="false">资料库</button>
     </header>
 
     <div class="app-shell">
@@ -53,8 +53,10 @@
         </div>
 
         <div class="library-list" id="libraryList" aria-live="polite"></div>
-        <p class="sidebar-note">所有进度保存在当前浏览器中</p>
+        <p class="sidebar-note">进度保存在当前浏览器，可在学习信号中导出备份</p>
       </aside>
+
+      <button class="sidebar-scrim" id="sidebarScrim" type="button" aria-label="关闭资料库" tabindex="-1" hidden></button>
 
       <main id="mainContent" tabindex="-1">
         <section class="dashboard-view" id="dashboardView" aria-labelledby="dashboardTitle">
@@ -64,9 +66,9 @@
               <h1 id="dashboardTitle">把英语练进工作里</h1>
               <p class="hero-copy">每天35分钟，读一篇、记八词、拆一句、答两题。先建立稳定输入，再把数据分析术语变成能开口使用的工作语言</p>
             </div>
-            <div class="day-counter" aria-label="年度学习进度">
+            <div class="day-counter" aria-label="30天学习进度">
               <span id="dayNumber">001</span>
-              <small>/ 365 DAYS</small>
+              <small>/ 030 DAYS</small>
             </div>
           </div>
 
@@ -74,13 +76,14 @@
             <section class="panel today-panel" aria-labelledby="todayPlanTitle">
               <div class="panel-heading">
                 <div>
-                  <p class="section-kicker">DAILY ROUTINE</p>
+                  <p class="section-kicker" id="todayModeLabel">LEARN DAY</p>
                   <h2 id="todayPlanTitle">今日35分钟</h2>
                 </div>
                 <span class="completion-ring" id="dailyPercent">0%</span>
               </div>
               <div class="daily-task-list" id="dailyTaskList"></div>
               <button class="primary-button" id="startReadingButton" type="button">开始今日阅读 <span aria-hidden="true">→</span></button>
+              <button class="secondary-button" id="resumeReadingButton" type="button" hidden>继续上次阅读</button>
             </section>
 
             <section class="panel assignment-panel" aria-labelledby="assignmentTitle">
@@ -102,21 +105,26 @@
                 <span id="progressBar"></span>
               </div>
               <p id="progressCopy">首批10篇文章，等待你的第一条记录</p>
+              <div class="data-actions" aria-label="学习数据备份">
+                <button class="secondary-button" id="exportProgressButton" type="button">导出进度</button>
+                <button class="secondary-button" id="importProgressButton" type="button">导入进度</button>
+                <input id="importProgressInput" type="file" accept="application/json,.json" hidden>
+              </div>
             </section>
 
             <section class="panel roadmap-panel" aria-labelledby="roadmapTitle">
               <div class="panel-heading">
                 <div>
-                  <p class="section-kicker">ONE-YEAR ROADMAP</p>
-                  <h2 id="roadmapTitle">一年路线</h2>
+                  <p class="section-kicker">30-DAY VALIDATION</p>
+                  <h2 id="roadmapTitle">30天学习闭环</h2>
                 </div>
                 <button class="text-button" id="openFrameworkButton" type="button">查看新概念三框架</button>
               </div>
-              <ol class="roadmap-list">
-                <li class="is-current"><span>01</span><div><strong>基础重建</strong><small>第1—90天 · 核心句型与高频词</small></div></li>
-                <li><span>02</span><div><strong>阅读成型</strong><small>第91—180天 · 长句与段落逻辑</small></div></li>
-                <li><span>03</span><div><strong>分析表达</strong><small>第181—270天 · 指标、洞察与建议</small></div></li>
-                <li><span>04</span><div><strong>工作输出</strong><small>第271—365天 · 邮件、汇报与面试</small></div></li>
+              <ol class="roadmap-list" id="roadmapList">
+                <li data-start="1" data-end="9"><span>01</span><div><strong>基础词汇</strong><small>第1—9天 · 三篇A2文章</small></div></li>
+                <li data-start="10" data-end="15"><span>02</span><div><strong>指标表达</strong><small>第10—15天 · KPI与报表</small></div></li>
+                <li data-start="16" data-end="21"><span>03</span><div><strong>分析方法</strong><small>第16—21天 · 留存与实验</small></div></li>
+                <li data-start="22" data-end="30"><span>04</span><div><strong>工作沟通</strong><small>第22—30天 · 预测、故障与建议</small></div></li>
               </ol>
             </section>
           </div>
@@ -154,7 +162,7 @@
             </div>
           </div>
 
-          <div class="reader-paper" id="readerContent" aria-live="polite">
+          <div class="reader-paper" id="readerContent" role="tabpanel" aria-live="polite">
             <div class="loading-state">正在加载阅读材料…</div>
           </div>
           <footer class="reader-footer">
