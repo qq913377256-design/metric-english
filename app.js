@@ -2,8 +2,12 @@
   "use strict";
 
   const STORAGE_KEY = "metricEnglish.v1";
-  const STORAGE_SCHEMA = 2;
-  const PLAN_DAYS = 30;
+  const STORAGE_SCHEMA = 3;
+  const READING_PLAN_DAYS = 30;
+  const WRITING_PLAN_DAYS = 30;
+  const MAX_DRAFT_LENGTH = 10000;
+  const MAX_NOTE_LENGTH = 500;
+  const MAX_ACTIVE_SECONDS = 7200;
   const SECTION_LABELS = {
     "English Original": "英文原文",
     "Chinese Translation": "中文翻译",
@@ -13,7 +17,33 @@
     "Reading Questions": "阅读问题"
   };
   const ARTICLE_SECTIONS = Object.keys(SECTION_LABELS);
-  const DAY_MODES = [
+  const WRITING_BASE_SECTIONS = [
+    "Workplace Context",
+    "Data Brief",
+    "Model Email",
+    "Structure Breakdown",
+    "Language Toolkit",
+    "Model Task",
+    "Model Reference",
+    "Guided Task",
+    "Guided Reference",
+    "Independent Task",
+    "Independent Reference",
+    "Oral Retell"
+  ];
+  const WRITING_MODES = [
+    { id: "model", label: "MODEL DAY", title: "示范日 · 30–35分钟", task: "Model Task", reference: "Model Reference" },
+    { id: "guided", label: "GUIDED DAY", title: "引导日 · 30–35分钟", task: "Guided Task", reference: "Guided Reference" },
+    { id: "independent", label: "INDEPENDENT DAY", title: "独立日 · 30–35分钟", task: "Independent Task", reference: "Independent Reference" }
+  ];
+  const RUBRIC_ITEMS = [
+    { id: "clarity", label: "结论清晰", help: "第一段能否让读者快速知道结果或请求" },
+    { id: "evidence", label: "证据充分", help: "是否使用了关键数字、比较基准或事实" },
+    { id: "logic", label: "逻辑连贯", help: "结论、证据、解释和下一步是否连得起来" },
+    { id: "tone", label: "职业措辞", help: "语气是否准确、克制，并说明不确定性" },
+    { id: "action", label: "行动建议", help: "读者能否看出下一步、负责人或时间点" }
+  ];
+  const READING_DAY_MODES = [
     {
       id: "learn",
       label: "LEARN DAY",
@@ -53,9 +83,9 @@
   ];
 
   let progressNotice = "";
-
   const state = {
     manifest: [],
+    writingManifest: [],
     currentItem: null,
     currentSections: {},
     activeSection: "English Original",
@@ -66,39 +96,56 @@
     fontScale: 1,
     currentView: "dashboard",
     articleLoaded: false,
+    readingLoadError: false,
+    writingLoadError: false,
+    currentWritingDay: 1,
+    writingSections: {},
+    writingMaterialLoaded: false,
+    timerInterval: null,
+    timerLastTick: null,
     data: loadProgress()
   };
-
   const elements = {};
 
   document.addEventListener("DOMContentLoaded", init);
 
   async function init() {
     cacheElements();
+    renderRubricFields();
     bindEvents();
-    elements.startReadingButton.disabled = true;
-    setTodayLabels();
-    renderDailyTasks();
     syncSidebarAccessibility();
-    await loadManifest();
-    if (progressNotice) showToast(progressNotice, 3600);
+    setTodayLabel();
+    renderDashboard();
+    await Promise.all([loadReadingManifest(), loadWritingManifest()]);
+    restoreLastView();
+    if (progressNotice) showToast(progressNotice, 4200);
   }
 
   function cacheElements() {
     [
       "sidebar", "menuButton", "searchInput", "libraryList", "libraryCards", "dashboardView", "libraryView", "readerView",
-      "dailyTaskList", "dailyPercent", "startReadingButton", "todayAssignment", "openFrameworkButton", "headerStreak",
-      "headerProgress", "statCompleted", "statWords", "statStreak", "progressBar", "progressCopy", "todayLabel", "dayNumber",
-      "readerEyebrow", "readerTitle", "readerMeta", "readerToolbar", "sectionTabs", "readerContent", "completeButton",
-      "completeButtonBottom", "backButton", "bilingualButton", "fontDownButton", "fontUpButton", "toast", "mainContent",
-      "sidebarScrim", "resumeReadingButton", "exportProgressButton", "importProgressButton", "importProgressInput", "roadmapList",
-      "todayModeLabel", "todayPlanTitle"
+      "recordsView", "writingView", "libraryTools", "dailyTaskList", "dailyPercent", "startTrainingButton", "todayAssignment",
+      "openFrameworkButton", "headerStreak", "headerProgress", "statCompleted", "statWords", "statStreak", "statCompletedLabel",
+      "statWordsLabel", "statStreakLabel", "progressTrack", "progressBar", "progressCopy", "todayLabel", "dayNumber", "dayTotal",
+      "dayCounter", "dashboardTitle", "heroCopy", "roadmapKicker", "roadmapTitle", "readerEyebrow", "readerTitle", "readerMeta",
+      "readerToolbar", "sectionTabs", "readerContent", "completeButton", "completeButtonBottom", "backButton", "bilingualButton",
+      "fontDownButton", "fontUpButton", "toast", "mainContent", "sidebarScrim", "resumeReadingButton", "exportProgressButton",
+      "importProgressButton", "importProgressInput", "roadmapList", "todayModeLabel", "todayPlanTitle", "recordsList",
+      "benchmarkPanel", "benchmarkTitle", "openCurrentWritingButton", "writingBackButton", "writingEyebrow", "writingTitle",
+      "writingMeta", "saveIndicator", "workplaceContext", "writingDataBrief", "modelExampleCard", "modelEmail", "languageSupport",
+      "languageToolkit", "writingModeLabel", "writingTaskTitle", "writingTarget", "writingTask", "writingDraft", "wordCount",
+      "activeTimer", "copyDraftButton", "submitWritingButton", "submissionPanel", "firstSubmissionText", "copySubmissionButton",
+      "rubricForm", "rubricFields", "reflectionNote", "rubricTotal", "saveAssessmentButton", "referencePanel", "referenceAnswer",
+      "structureBreakdown", "oralRetell", "nextWritingButton", "writingError", "retryWritingButton"
     ].forEach((id) => { elements[id] = document.getElementById(id); });
   }
 
   function bindEvents() {
     document.querySelectorAll("[data-view]").forEach((button) => {
       button.addEventListener("click", () => showView(button.dataset.view));
+    });
+    document.querySelectorAll("[data-program]").forEach((button) => {
+      button.addEventListener("click", () => setActiveProgram(button.dataset.program));
     });
     document.querySelectorAll("[data-level]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -113,20 +160,21 @@
       state.query = event.target.value.trim().toLowerCase();
       renderLibrary();
     });
-    elements.dailyTaskList.addEventListener("change", onDailyTaskChange);
-    elements.startReadingButton.addEventListener("click", () => openItem(getTodayPlan()?.article?.id));
+    elements.dailyTaskList.addEventListener("change", onReadingTaskChange);
+    elements.startTrainingButton.addEventListener("click", startCurrentTraining);
     elements.resumeReadingButton.addEventListener("click", () => openItem(state.data.lastReader?.itemId, { resume: true }));
+    elements.openCurrentWritingButton.addEventListener("click", openCurrentWriting);
     elements.exportProgressButton.addEventListener("click", exportProgress);
     elements.importProgressButton.addEventListener("click", () => elements.importProgressInput.click());
     elements.importProgressInput.addEventListener("change", importProgress);
     elements.openFrameworkButton.addEventListener("click", () => openItem("nce3-framework"));
     elements.backButton.addEventListener("click", () => showView(state.viewBeforeReader));
+    elements.writingBackButton.addEventListener("click", () => showView("dashboard"));
     elements.completeButton.addEventListener("click", toggleCurrentComplete);
     elements.completeButtonBottom.addEventListener("click", toggleCurrentComplete);
     elements.sectionTabs.addEventListener("click", (event) => {
       const button = event.target.closest("button[data-section]");
-      if (!button) return;
-      activateSection(button.dataset.section, true);
+      if (button) activateSection(button.dataset.section, true);
     });
     elements.sectionTabs.addEventListener("keydown", onSectionTabKeydown);
     elements.bilingualButton.addEventListener("click", () => {
@@ -139,9 +187,29 @@
     elements.fontDownButton.addEventListener("click", () => changeFont(-0.1));
     elements.fontUpButton.addEventListener("click", () => changeFont(0.1));
     elements.readerContent.addEventListener("click", onReaderContentClick);
+    elements.writingDraft.addEventListener("input", onWritingInput);
+    elements.copyDraftButton.addEventListener("click", () => copyText(elements.writingDraft.value, "草稿已复制"));
+    elements.copySubmissionButton.addEventListener("click", () => copyText(elements.firstSubmissionText.textContent, "首次提交已复制"));
+    elements.submitWritingButton.addEventListener("click", submitWriting);
+    elements.rubricForm.addEventListener("change", onRubricChange);
+    elements.reflectionNote.addEventListener("input", debounce(saveRubricDraft, 400));
+    elements.rubricForm.addEventListener("submit", submitAssessment);
+    elements.nextWritingButton.addEventListener("click", openNextWriting);
+    elements.retryWritingButton.addEventListener("click", () => openWritingDay(state.currentWritingDay, { retry: true }));
+    elements.recordsList.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-writing-day]");
+      if (button) openWritingDay(Number(button.dataset.writingDay));
+      const copyButton = event.target.closest("button[data-copy-day]");
+      if (copyButton) copyRecord(Number(copyButton.dataset.copyDay), copyButton.dataset.copyKind);
+    });
     window.addEventListener("resize", syncSidebarAccessibility);
     window.addEventListener("scroll", saveReaderPosition, { passive: true });
-    window.addEventListener("beforeunload", saveReaderPosition);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("beforeunload", () => {
+      saveReaderPosition({ type: "beforeunload" });
+      pauseWritingTimer();
+      persistWritingDraft();
+    });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && elements.sidebar.classList.contains("is-open")) toggleSidebar(false);
     });
@@ -157,7 +225,10 @@
       lastOpened: null,
       lastReader: null,
       lastView: "dashboard",
-      fontScale: 1
+      lastWritingDay: 1,
+      fontScale: 1,
+      activeProgram: "writing",
+      writingProgram: { startedAt: null, completedAt: null, attempts: {} }
     };
   }
 
@@ -179,7 +250,7 @@
       return true;
     } catch (error) {
       console.error("Progress could not be saved", error);
-      if (elements.toast) showToast("进度保存失败，请导出备份后检查浏览器设置", 3600);
+      if (elements.toast) showToast("进度保存失败，请先导出备份并检查浏览器设置", 3600);
       return false;
     }
   }
@@ -187,9 +258,11 @@
   function sanitizeProgress(candidate) {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error("Progress must be an object");
     const fallback = defaultProgress();
+    const legacySchema = Number(candidate.schemaVersion) || 1;
     const parsedStart = parseLocalDate(candidate.startedAt || "");
-    const validDate = /^\d{4}-\d{2}-\d{2}$/.test(candidate.startedAt || "") && !Number.isNaN(parsedStart.getTime()) && localDateKey(parsedStart) === candidate.startedAt;
-    const startedAt = validDate && parseLocalDate(candidate.startedAt) <= new Date() ? candidate.startedAt : fallback.startedAt;
+    const validDate = /^\d{4}-\d{2}-\d{2}$/.test(candidate.startedAt || "") &&
+      !Number.isNaN(parsedStart.getTime()) && localDateKey(parsedStart) === candidate.startedAt;
+    const startedAt = validDate && parsedStart <= new Date() ? candidate.startedAt : fallback.startedAt;
     const daily = {};
     if (candidate.daily && typeof candidate.daily === "object" && !Array.isArray(candidate.daily)) {
       Object.entries(candidate.daily).slice(0, 400).forEach(([date, tasks]) => {
@@ -199,11 +272,19 @@
     const legacyLastOpened = typeof candidate.lastOpened === "string" ? candidate.lastOpened : null;
     const sourceReader = candidate.lastReader && typeof candidate.lastReader === "object" ? candidate.lastReader : null;
     const lastReader = sourceReader && typeof sourceReader.itemId === "string" ? {
-      itemId: sourceReader.itemId,
+      itemId: safeText(sourceReader.itemId, 120),
       section: ARTICLE_SECTIONS.includes(sourceReader.section) ? sourceReader.section : "English Original",
       bilingual: Boolean(sourceReader.bilingual),
-      scrollY: Number.isFinite(sourceReader.scrollY) ? Math.max(0, Math.min(sourceReader.scrollY, 100000)) : 0
-    } : legacyLastOpened ? { itemId: legacyLastOpened, section: "English Original", bilingual: false, scrollY: 0 } : null;
+      scrollY: finiteNumber(sourceReader.scrollY, 0, 100000, 0)
+    } : legacyLastOpened ? { itemId: safeText(legacyLastOpened, 120), section: "English Original", bilingual: false, scrollY: 0 } : null;
+    const writingProgram = sanitizeWritingProgram(candidate.writingProgram);
+    const allowedViews = ["dashboard", "library", "reader", "records", "writing"];
+    let lastView = allowedViews.includes(candidate.lastView) ? candidate.lastView : "dashboard";
+    if (lastView === "reader" && !lastReader) lastView = "dashboard";
+    if (legacySchema < STORAGE_SCHEMA) {
+      lastView = "dashboard";
+      progressNotice = "V1.1进度已保留，写作训练已准备好";
+    }
     return {
       schemaVersion: STORAGE_SCHEMA,
       startedAt,
@@ -212,9 +293,84 @@
       daily,
       lastOpened: lastReader?.itemId || null,
       lastReader,
-      lastView: candidate.lastView === "reader" && lastReader ? "reader" : candidate.lastView === "library" ? "library" : "dashboard",
-      fontScale: Number.isFinite(candidate.fontScale) ? Math.min(1.3, Math.max(0.8, candidate.fontScale)) : 1
+      lastView,
+      lastWritingDay: Math.round(finiteNumber(candidate.lastWritingDay, 1, WRITING_PLAN_DAYS, 1)),
+      fontScale: finiteNumber(candidate.fontScale, 0.8, 1.3, 1),
+      activeProgram: candidate.activeProgram === "reading" ? "reading" : "writing",
+      writingProgram
     };
+  }
+
+  function sanitizeWritingProgram(value) {
+    const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const attempts = {};
+    if (source.attempts && typeof source.attempts === "object" && !Array.isArray(source.attempts)) {
+      Object.entries(source.attempts).slice(0, WRITING_PLAN_DAYS).forEach(([dayKey, attempt]) => {
+        const day = Number(dayKey);
+        if (Number.isInteger(day) && day >= 1 && day <= WRITING_PLAN_DAYS) attempts[String(day)] = sanitizeAttempt(attempt, day);
+      });
+    }
+    const allComplete = Array.from({ length: WRITING_PLAN_DAYS }, (_, index) => attempts[String(index + 1)]?.completedAt).every(Boolean);
+    return {
+      startedAt: safeIso(source.startedAt),
+      completedAt: allComplete ? safeIso(source.completedAt) || new Date().toISOString() : null,
+      attempts
+    };
+  }
+
+  function sanitizeAttempt(value, day) {
+    const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const draftText = safeText(source.draftText, MAX_DRAFT_LENGTH);
+    const activeSeconds = finiteNumber(source.activeSeconds, 0, MAX_ACTIVE_SECONDS, 0);
+    const firstSource = source.firstSubmission && typeof source.firstSubmission === "object" ? source.firstSubmission : null;
+    const firstText = safeText(firstSource?.text, MAX_DRAFT_LENGTH);
+    const firstSubmission = firstText.trim() ? {
+      text: firstText,
+      submittedAt: safeIso(firstSource?.submittedAt) || new Date().toISOString(),
+      wordCount: countEnglishWords(firstText),
+      activeSeconds: finiteNumber(firstSource?.activeSeconds, 0, MAX_ACTIVE_SECONDS, activeSeconds)
+    } : null;
+    const assessment = sanitizeAssessment(source.assessment);
+    const completedAt = firstSubmission && assessment?.assessedAt ? safeIso(source.completedAt) || assessment.assessedAt : null;
+    return {
+      exerciseId: typeof source.exerciseId === "string" ? safeText(source.exerciseId, 120) : `day-${String(day).padStart(2, "0")}`,
+      draftText,
+      startedAt: safeIso(source.startedAt),
+      updatedAt: safeIso(source.updatedAt),
+      activeSeconds,
+      firstSubmission,
+      assessment,
+      completedAt
+    };
+  }
+
+  function sanitizeAssessment(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const scores = {};
+    RUBRIC_ITEMS.forEach((item) => {
+      const score = Number(value.scores?.[item.id]);
+      if (Number.isInteger(score) && score >= 0 && score <= 2) scores[item.id] = score;
+    });
+    const complete = RUBRIC_ITEMS.every((item) => Object.prototype.hasOwnProperty.call(scores, item.id));
+    return {
+      scores,
+      note: safeText(value.note, MAX_NOTE_LENGTH),
+      assessedAt: complete ? safeIso(value.assessedAt) : null
+    };
+  }
+
+  function safeText(value, limit) {
+    return typeof value === "string" ? value.slice(0, limit) : "";
+  }
+
+  function safeIso(value) {
+    if (typeof value !== "string" || value.length > 40) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+
+  function finiteNumber(value, min, max, fallback) {
+    return Number.isFinite(Number(value)) ? Math.min(max, Math.max(min, Number(value))) : fallback;
   }
 
   function uniqueStrings(value, limit) {
@@ -222,58 +378,102 @@
     return Array.from(new Set(value.filter((item) => typeof item === "string" && item.length <= 120))).slice(0, limit);
   }
 
-  function renderAll() {
-    renderLibrary();
-    renderDashboard();
-    updateStats();
-  }
-
-  async function loadManifest() {
-    elements.startReadingButton.disabled = true;
-    elements.todayAssignment.setAttribute("aria-busy", "true");
-    elements.todayAssignment.innerHTML = '<h2 id="assignmentTitle">正在准备今日文章</h2><p>读取学习目录中…</p>';
+  async function loadReadingManifest() {
     try {
       const response = await fetch("./content/manifest.json", { cache: "no-store" });
-      if (!response.ok) throw new Error(`Manifest request failed: ${response.status}`);
+      if (!response.ok) throw new Error(`Reading manifest failed: ${response.status}`);
       const manifest = await response.json();
-      if (!Array.isArray(manifest) || !manifest.some((item) => item?.type === "article" && typeof item.path === "string")) {
-        throw new Error("Manifest format is invalid");
+      if (!Array.isArray(manifest) || !manifest.some((item) => item?.type === "article" && isSafeContentPath(item.path))) {
+        throw new Error("Reading manifest format is invalid");
       }
       state.manifest = manifest;
-      elements.todayAssignment.removeAttribute("aria-busy");
-      elements.startReadingButton.disabled = false;
-      state.fontScale = state.data.fontScale;
-      document.documentElement.style.setProperty("--reader-scale", state.fontScale);
-      renderDailyTasks();
-      renderAll();
-      if (state.data.lastView === "reader" && state.data.lastReader && state.manifest.some((item) => item.id === state.data.lastReader.itemId)) {
-        await openItem(state.data.lastReader.itemId, { resume: true });
-      } else if (state.data.lastView === "library") {
-        showView("library");
-      }
+      state.readingLoadError = false;
     } catch (error) {
       console.error(error);
       state.manifest = [];
-      elements.libraryList.innerHTML = '<div class="error-box"><p>资料目录加载失败</p><button class="secondary-button" id="retryManifestButton" type="button">重新加载</button></div>';
-      elements.todayAssignment.removeAttribute("aria-busy");
-      elements.todayAssignment.innerHTML = '<h2 id="assignmentTitle">暂时无法读取文章</h2><p>请检查网络后重试。直接双击HTML文件也会阻止Markdown读取。</p><button class="light-button" id="retryAssignmentButton" type="button">重新加载</button>';
-      document.getElementById("retryManifestButton")?.addEventListener("click", loadManifest);
-      document.getElementById("retryAssignmentButton")?.addEventListener("click", loadManifest);
+      state.readingLoadError = true;
+    }
+    state.fontScale = state.data.fontScale;
+    document.documentElement.style.setProperty("--reader-scale", state.fontScale);
+    renderAll();
+  }
+
+  async function loadWritingManifest() {
+    try {
+      const response = await fetch("./content/writing/manifest.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`Writing manifest failed: ${response.status}`);
+      const manifest = await response.json();
+      if (!Array.isArray(manifest) || manifest.length !== 10 || !manifest.every(isValidWritingEntry)) {
+        throw new Error("Writing manifest format is invalid");
+      }
+      state.writingManifest = manifest;
+      state.writingLoadError = false;
+    } catch (error) {
+      console.error(error);
+      state.writingManifest = [];
+      state.writingLoadError = true;
+    }
+    renderAll();
+  }
+
+  function isSafeContentPath(path) {
+    return typeof path === "string" && /^\.\/content\/[A-Za-z0-9_./-]+\.md$/.test(path) && !path.includes("..");
+  }
+
+  function isValidWritingEntry(item) {
+    if (!item || typeof item !== "object" || !isSafeContentPath(item.path)) return false;
+    if (!/^[a-z0-9-]{2,80}$/.test(item.id || "") || !Number.isInteger(Number(item.order))) return false;
+    if (![item.title, item.titleZh, item.level, item.focus, item.summary].every((value) => typeof value === "string" && value.length <= 300)) return false;
+    return WRITING_MODES.every((mode) => {
+      const target = item.targets?.[mode.id];
+      return Array.isArray(target) && target.length === 2 && target.every(Number.isFinite) && target[0] >= 20 && target[1] <= 300 && target[0] <= target[1];
+    });
+  }
+
+  function renderAll() {
+    renderLibrary();
+    renderDashboard();
+    renderRecords();
+  }
+
+  function restoreLastView() {
+    const view = state.data.lastView;
+    if (view === "reader" && state.data.lastReader && state.manifest.some((item) => item.id === state.data.lastReader.itemId)) {
+      openItem(state.data.lastReader.itemId, { resume: true });
+    } else if (view === "writing" && state.writingManifest.length) {
+      openWritingDay(state.data.lastWritingDay || getCurrentWritingDay());
+    } else if (view === "library" || view === "records") {
+      showView(view);
+    } else {
+      showView("dashboard");
     }
   }
 
   function showView(view) {
+    if (!["dashboard", "library", "reader", "records", "writing"].includes(view)) view = "dashboard";
     if (state.currentView === "reader" && view !== "reader") saveReaderPosition({ type: "beforeunload" });
-    if (view !== "reader") state.viewBeforeReader = view;
+    if (state.currentView === "writing" && view !== "writing") {
+      pauseWritingTimer();
+      persistWritingDraft();
+    }
+    if (view !== "reader" && view !== "writing") state.viewBeforeReader = view;
     state.currentView = view;
     state.data.lastView = view;
     saveProgress();
     elements.dashboardView.hidden = view !== "dashboard";
     elements.libraryView.hidden = view !== "library";
     elements.readerView.hidden = view !== "reader";
-    document.querySelectorAll(".nav-button").forEach((button) => button.classList.toggle("is-active", button.dataset.view === view));
+    elements.recordsView.hidden = view !== "records";
+    elements.writingView.hidden = view !== "writing";
+    elements.libraryTools.hidden = !["library", "reader"].includes(view);
+    document.querySelectorAll(".nav-button").forEach((button) => {
+      const activeView = view === "writing" ? "dashboard" : view === "reader" ? "library" : view;
+      button.classList.toggle("is-active", button.dataset.view === activeView);
+    });
     toggleSidebar(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (view === "dashboard") renderDashboard();
+    if (view === "records") renderRecords();
+    window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
     elements.mainContent.focus({ preventScroll: true });
   }
 
@@ -300,134 +500,853 @@
     elements.sidebarScrim.hidden = !open;
   }
 
-  function setTodayLabels() {
-    const now = new Date();
-    elements.todayLabel.textContent = new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "long" }).format(now);
-    const day = getPlanDay(now);
-    elements.dayNumber.textContent = String(day).padStart(3, "0");
+  function setTodayLabel() {
+    elements.todayLabel.textContent = new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "long" }).format(new Date());
   }
 
-  function renderDailyTasks() {
-    const today = localDateKey(new Date());
-    const checked = state.data.daily[today] || [];
-    const plan = getTodayPlan();
-    if (isPlanFinished()) {
-      const completedDays = countCompletedPlanDays();
-      elements.todayModeLabel.textContent = "VALIDATION COMPLETE";
-      elements.todayPlanTitle.textContent = "30天验证期已结束";
-      elements.dailyTaskList.innerHTML = `<div class="plan-finished"><strong>完成${completedDays}天</strong><span>导出进度备份，再根据完成率决定下一轮计划</span></div>`;
-      elements.dailyPercent.textContent = `${Math.round((completedDays / PLAN_DAYS) * 100)}%`;
-      elements.dailyPercent.classList.toggle("is-complete", completedDays === PLAN_DAYS);
+  function setActiveProgram(program) {
+    if (!["writing", "reading"].includes(program) || state.data.activeProgram === program) return;
+    state.data.activeProgram = program;
+    state.data.lastView = "dashboard";
+    saveProgress();
+    renderDashboard();
+    showView("dashboard");
+  }
+
+  function renderDashboard() {
+    document.querySelectorAll("[data-program]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.program === state.data.activeProgram));
+    });
+    if (state.data.activeProgram === "reading") renderReadingDashboard();
+    else renderWritingDashboard();
+  }
+
+  function renderWritingDashboard() {
+    const currentDay = getCurrentWritingDay();
+    const plan = getWritingPlan(currentDay);
+    const started = Boolean(state.data.writingProgram.startedAt);
+    const complete = isWritingProgramComplete();
+    elements.dashboardTitle.textContent = "把分析写成能推动决策的英文";
+    elements.heroCopy.textContent = "每天30–35分钟，在数据分析工作情境中完成一封邮件或一段分析结论";
+    elements.dayNumber.textContent = String(complete ? WRITING_PLAN_DAYS : currentDay).padStart(3, "0");
+    elements.dayTotal.textContent = "/ 030 DAYS";
+    elements.dayCounter.setAttribute("aria-label", `写作训练第${complete ? WRITING_PLAN_DAYS : currentDay}天`);
+    elements.openFrameworkButton.hidden = true;
+    elements.roadmapKicker.textContent = "30-DAY WRITING";
+    elements.roadmapTitle.textContent = "10个分析师工作情境";
+    elements.resumeReadingButton.hidden = true;
+
+    if (state.writingLoadError || !plan) {
+      elements.todayModeLabel.textContent = "CONTENT UNAVAILABLE";
+      elements.todayPlanTitle.textContent = "写作材料暂时无法读取";
+      elements.dailyTaskList.innerHTML = '<div class="plan-finished"><strong>目录加载失败</strong><span>刷新页面后重试，阅读资料仍可使用</span></div>';
+      elements.todayAssignment.innerHTML = '<h2 id="assignmentTitle">写作训练未加载</h2><p>请检查网络连接后刷新页面</p>';
+      elements.startTrainingButton.disabled = true;
+      renderWritingStats();
+      renderWritingRoadmap(currentDay);
       return;
     }
-    const tasks = plan?.mode.tasks || DAY_MODES[0].tasks;
-    elements.todayModeLabel.textContent = plan?.mode.label || DAY_MODES[0].label;
-    elements.todayPlanTitle.textContent = plan?.mode.title || DAY_MODES[0].title;
-    elements.dailyTaskList.innerHTML = tasks.map((task) => `
-      <label class="daily-task">
-        <input type="checkbox" value="${task.id}" ${checked.includes(task.id) ? "checked" : ""}>
-        <span>${task.label}</span>
-        <small>${task.time}</small>
-      </label>
-    `).join("");
-    updateDailyPercent();
+
+    if (complete) {
+      elements.todayModeLabel.textContent = "WRITING COMPLETE";
+      elements.todayPlanTitle.textContent = "30天写作训练已完成";
+      elements.dailyTaskList.innerHTML = '<div class="plan-finished"><strong>30 / 30天</strong><span>查看写作记录，对比第1天和第30天</span></div>';
+      elements.dailyPercent.textContent = "100%";
+      elements.dailyPercent.classList.add("is-complete");
+      elements.todayAssignment.innerHTML = '<p class="assignment-type">训练结果</p><h2 id="assignmentTitle">基线与终测已可对比</h2><p>回看首次提交和修改版，确定下一轮最需要加强的表达</p>';
+      elements.startTrainingButton.disabled = false;
+      elements.startTrainingButton.innerHTML = '查看写作记录 <span aria-hidden="true">→</span>';
+    } else if (!started) {
+      elements.todayModeLabel.textContent = "READY TO START";
+      elements.todayPlanTitle.textContent = "30天职场写作训练";
+      elements.dailyTaskList.innerHTML = [
+        ["01", "示范、仿写、独立输出", "10个情境"],
+        ["02", "首次提交与五项自评", "保留快照"],
+        ["03", "基线和终测对比", "第1、30天"]
+      ].map(([mark, label, time]) => `<div class="daily-task task-status"><span class="task-mark">${mark}</span><span>${label}</span><small>${time}</small></div>`).join("");
+      elements.dailyPercent.textContent = "0%";
+      elements.dailyPercent.classList.remove("is-complete");
+      elements.todayAssignment.innerHTML = `
+        <p class="assignment-type">第1天 · 写作基线</p>
+        <h2 id="assignmentTitle">${escapeHtml(plan.scenario.title)}</h2>
+        <p>先完成一段限时写作，再查看范例。训练按完成顺序推进，不会因跨天跳题</p>
+        <div class="assignment-meta"><span class="meta-pill">B1+</span><span class="meta-pill">30–35分钟</span><span class="meta-pill">虚构数据</span></div>
+      `;
+      elements.startTrainingButton.disabled = false;
+      elements.startTrainingButton.innerHTML = '开始30天写作训练 <span aria-hidden="true">→</span>';
+    } else {
+      const attempt = getAttempt(currentDay);
+      const status = getWritingStepStatus(attempt);
+      elements.todayModeLabel.textContent = plan.mode.label;
+      elements.todayPlanTitle.textContent = plan.mode.title;
+      elements.dailyTaskList.innerHTML = [
+        { done: Boolean(attempt?.draftText.trim()), label: "完成英文草稿", meta: `${plan.target[0]}–${plan.target[1]}词` },
+        { done: Boolean(attempt?.firstSubmission), label: "提交首次版本", meta: "保留快照" },
+        { done: Boolean(attempt?.assessment?.assessedAt), label: "完成五项自评", meta: "解锁参考" }
+      ].map((task) => `<div class="daily-task task-status ${task.done ? "is-done" : ""}"><span class="task-mark" aria-hidden="true">${task.done ? "✓" : "·"}</span><span>${task.label}</span><small>${task.meta}</small></div>`).join("");
+      elements.dailyPercent.textContent = `${status}%`;
+      elements.dailyPercent.classList.toggle("is-complete", status === 100);
+      elements.todayAssignment.innerHTML = `
+        <p class="assignment-type">第${currentDay}天 · 情境${plan.scenario.order}</p>
+        <h2 id="assignmentTitle">${escapeHtml(plan.scenario.title)}</h2>
+        <p>${escapeHtml(plan.scenario.summary)}</p>
+        <div class="assignment-meta"><span class="meta-pill">${escapeHtml(plan.scenario.level)}</span><span class="meta-pill">${plan.target[0]}–${plan.target[1]}词</span><span class="meta-pill">${escapeHtml(plan.scenario.focus)}</span></div>
+      `;
+      elements.startTrainingButton.disabled = false;
+      elements.startTrainingButton.innerHTML = `${attempt?.draftText ? "继续今日写作" : "开始今日写作"} <span aria-hidden="true">→</span>`;
+    }
+    renderWritingStats();
+    renderWritingRoadmap(currentDay);
   }
 
-  function onDailyTaskChange() {
+  function renderWritingStats() {
+    const attempts = Object.values(state.data.writingProgram.attempts);
+    const completed = countCompletedWritingDays();
+    const drafted = attempts.filter((attempt) => attempt.draftText.trim()).length;
+    const assessed = attempts.filter((attempt) => attempt.assessment?.assessedAt);
+    const latestScore = assessed.length ? assessmentTotal(assessed.sort((a, b) => new Date(a.assessment.assessedAt) - new Date(b.assessment.assessedAt)).at(-1).assessment) : null;
+    const streak = calculateWritingStreak();
+    elements.statCompleted.textContent = String(completed);
+    elements.statCompletedLabel.textContent = "完成天数";
+    elements.statWords.textContent = String(drafted);
+    elements.statWordsLabel.textContent = "已有草稿";
+    elements.statStreak.textContent = latestScore === null ? "—" : `${latestScore}/10`;
+    elements.statStreakLabel.textContent = "最近自评";
+    elements.headerStreak.textContent = `写作连续 ${streak} 天`;
+    elements.headerProgress.textContent = `写作 ${completed} / ${WRITING_PLAN_DAYS}`;
+    const percent = Math.round((completed / WRITING_PLAN_DAYS) * 100);
+    elements.progressBar.style.width = `${percent}%`;
+    elements.progressTrack.setAttribute("aria-label", `30天写作计划已完成${completed}天`);
+    elements.progressCopy.textContent = completed ? `已完成${percent}%，当前内容会保留到提交和自评结束` : "开始第1次写作后记录训练进度";
+  }
+
+  function renderWritingRoadmap(currentDay) {
+    if (!state.writingManifest.length) {
+      elements.roadmapList.innerHTML = '<li><span>—</span><div><strong>写作目录未加载</strong><small>刷新页面后重试</small></div></li>';
+      return;
+    }
+    const completed = countCompletedWritingDays();
+    elements.roadmapList.innerHTML = state.writingManifest.map((scenario, index) => {
+      const start = index * 3 + 1;
+      const end = start + 2;
+      const current = currentDay >= start && currentDay <= end && completed < WRITING_PLAN_DAYS;
+      const scenarioDone = completed >= end;
+      return `<li class="${current ? "is-current" : ""} ${scenarioDone ? "is-done" : ""}"><span>${String(index + 1).padStart(2, "0")}</span><div><strong>${escapeHtml(scenario.titleZh)}</strong><small>第${start}–${end}天 · ${escapeHtml(scenario.focus)}</small></div></li>`;
+    }).join("");
+  }
+
+  function renderReadingDashboard() {
+    const plan = getReadingPlan();
+    elements.dashboardTitle.textContent = "把英语练进工作里";
+    elements.heroCopy.textContent = "每天35分钟，读一篇、记八词、拆一句、答两题，建立稳定的行业英语输入";
+    elements.dayNumber.textContent = String(getReadingPlanDay()).padStart(3, "0");
+    elements.dayTotal.textContent = "/ 030 DAYS";
+    elements.dayCounter.setAttribute("aria-label", `阅读计划第${getReadingPlanDay()}天`);
+    elements.openFrameworkButton.hidden = false;
+    elements.roadmapKicker.textContent = "30-DAY READING";
+    elements.roadmapTitle.textContent = "30天阅读闭环";
+    if (state.readingLoadError || !plan) {
+      elements.todayModeLabel.textContent = "CONTENT UNAVAILABLE";
+      elements.todayPlanTitle.textContent = "阅读目录暂时无法读取";
+      elements.dailyTaskList.innerHTML = '<div class="plan-finished"><strong>目录加载失败</strong><span>请检查网络后刷新页面</span></div>';
+      elements.todayAssignment.innerHTML = '<h2 id="assignmentTitle">阅读材料未加载</h2><p>直接双击HTML文件会阻止Markdown读取</p>';
+      elements.startTrainingButton.disabled = true;
+      renderReadingStats();
+      renderReadingRoadmap();
+      return;
+    }
+    const today = localDateKey(new Date());
+    const checked = state.data.daily[today] || [];
+    if (isReadingPlanFinished()) {
+      const completedDays = countCompletedReadingDays();
+      elements.todayModeLabel.textContent = "READING COMPLETE";
+      elements.todayPlanTitle.textContent = "30天阅读验证期已结束";
+      elements.dailyTaskList.innerHTML = `<div class="plan-finished"><strong>完成${completedDays}天</strong><span>文章和词汇记录仍可继续回顾</span></div>`;
+      elements.dailyPercent.textContent = `${Math.round((completedDays / READING_PLAN_DAYS) * 100)}%`;
+      elements.dailyPercent.classList.toggle("is-complete", completedDays === READING_PLAN_DAYS);
+    } else {
+      elements.todayModeLabel.textContent = plan.mode.label;
+      elements.todayPlanTitle.textContent = plan.mode.title;
+      elements.dailyTaskList.innerHTML = plan.mode.tasks.map((task) => `
+        <label class="daily-task">
+          <input type="checkbox" value="${task.id}" ${checked.includes(task.id) ? "checked" : ""}>
+          <span>${task.label}</span><small>${task.time}</small>
+        </label>
+      `).join("");
+      updateReadingDailyPercent();
+    }
+    elements.todayAssignment.innerHTML = `
+      <p class="assignment-type">第${plan.day}天 · ${escapeHtml(plan.mode.title.split(" · ")[0])}</p>
+      <h2 id="assignmentTitle">${escapeHtml(plan.article.title)}</h2>
+      <p>${escapeHtml(plan.mode.description)}。${escapeHtml(plan.article.summary)}</p>
+      <div class="assignment-meta"><span class="meta-pill">${escapeHtml(plan.article.level)}</span><span class="meta-pill">35分钟</span><span class="meta-pill">${escapeHtml(plan.article.focus)}</span></div>
+    `;
+    const label = isReadingPlanFinished() ? "回顾最后一篇" : plan.mode.id === "learn" ? "开始今日阅读" : "打开今日复习文章";
+    elements.startTrainingButton.disabled = false;
+    elements.startTrainingButton.innerHTML = `${label} <span aria-hidden="true">→</span>`;
+    const lastItem = state.manifest.find((item) => item.id === state.data.lastReader?.itemId);
+    const canResume = lastItem && lastItem.id !== plan.article.id;
+    elements.resumeReadingButton.hidden = !canResume;
+    if (canResume) elements.resumeReadingButton.textContent = `继续上次：${lastItem.title}`;
+    renderReadingStats();
+    renderReadingRoadmap();
+  }
+
+  function renderReadingRoadmap() {
+    const items = [
+      ["01", "基础词汇", "第1–9天 · 三篇A2文章", 1, 9],
+      ["02", "指标表达", "第10–15天 · KPI与报表", 10, 15],
+      ["03", "分析方法", "第16–21天 · 留存与实验", 16, 21],
+      ["04", "工作沟通", "第22–30天 · 预测、故障与建议", 22, 30]
+    ];
+    const day = getReadingPlanDay();
+    elements.roadmapList.innerHTML = items.map(([order, title, copy, start, end]) => `<li class="${day >= start && day <= end ? "is-current" : ""}"><span>${order}</span><div><strong>${title}</strong><small>${copy}</small></div></li>`).join("");
+  }
+
+  function renderReadingStats() {
+    const articleIds = state.manifest.filter((item) => item.type === "article").map((item) => item.id);
+    const completed = state.data.completed.filter((id) => articleIds.includes(id)).length;
+    const streak = calculateReadingStreak();
+    const completedDays = countCompletedReadingDays();
+    elements.statCompleted.textContent = String(completed);
+    elements.statCompletedLabel.textContent = "已读文章";
+    elements.statWords.textContent = String(state.data.learnedWords.length);
+    elements.statWordsLabel.textContent = "已掌握词汇";
+    elements.statStreak.textContent = String(streak);
+    elements.statStreakLabel.textContent = "连续天数";
+    elements.headerStreak.textContent = `阅读连续 ${streak} 天`;
+    elements.headerProgress.textContent = `阅读 ${completedDays} / ${READING_PLAN_DAYS}`;
+    const percent = Math.round((completedDays / READING_PLAN_DAYS) * 100);
+    elements.progressBar.style.width = `${percent}%`;
+    elements.progressTrack.setAttribute("aria-label", `30天阅读计划已完成${completedDays}天`);
+    elements.progressCopy.textContent = completedDays ? `阅读验证计划已完成${percent}%，4项任务全部勾选才计入` : "完成今天4项任务后记录第1个阅读日";
+  }
+
+  function startCurrentTraining() {
+    if (state.data.activeProgram === "reading") {
+      openItem(getReadingPlan()?.article?.id);
+      return;
+    }
+    if (isWritingProgramComplete()) {
+      showView("records");
+      return;
+    }
+    if (!state.data.writingProgram.startedAt) {
+      state.data.writingProgram.startedAt = new Date().toISOString();
+      saveProgress();
+    }
+    openWritingDay(getCurrentWritingDay());
+  }
+
+  function openCurrentWriting() {
+    if (isWritingProgramComplete()) {
+      openWritingDay(WRITING_PLAN_DAYS);
+      return;
+    }
+    if (!state.data.writingProgram.startedAt) {
+      state.data.activeProgram = "writing";
+      showView("dashboard");
+      return;
+    }
+    openWritingDay(getCurrentWritingDay());
+  }
+
+  function getWritingPlan(day) {
+    if (!Number.isInteger(day) || day < 1 || day > WRITING_PLAN_DAYS || !state.writingManifest.length) return null;
+    const scenario = state.writingManifest[Math.floor((day - 1) / 3)];
+    const mode = WRITING_MODES[(day - 1) % 3];
+    let taskSection = mode.task;
+    let referenceSection = mode.reference;
+    let target = scenario.targets[mode.id];
+    if (day === 1) {
+      taskSection = "Baseline Task";
+      referenceSection = "Baseline Reference";
+      target = [120, 160];
+    } else if (day === WRITING_PLAN_DAYS) {
+      taskSection = "Final Task";
+      referenceSection = "Final Reference";
+      target = [120, 160];
+    }
+    return { day, scenario, mode, taskSection, referenceSection, target };
+  }
+
+  function getCurrentWritingDay() {
+    for (let day = 1; day <= WRITING_PLAN_DAYS; day += 1) {
+      if (!getAttempt(day)?.completedAt) return day;
+    }
+    return WRITING_PLAN_DAYS;
+  }
+
+  function getAttempt(day) {
+    return state.data.writingProgram.attempts[String(day)] || null;
+  }
+
+  function ensureAttempt(day) {
+    const key = String(day);
+    if (!state.data.writingProgram.attempts[key]) {
+      state.data.writingProgram.attempts[key] = {
+        exerciseId: `day-${String(day).padStart(2, "0")}`,
+        draftText: "",
+        startedAt: new Date().toISOString(),
+        updatedAt: null,
+        activeSeconds: 0,
+        firstSubmission: null,
+        assessment: null,
+        completedAt: null
+      };
+    }
+    return state.data.writingProgram.attempts[key];
+  }
+
+  function countCompletedWritingDays() {
+    return Array.from({ length: WRITING_PLAN_DAYS }, (_, index) => getAttempt(index + 1)?.completedAt).filter(Boolean).length;
+  }
+
+  function isWritingProgramComplete() {
+    return countCompletedWritingDays() === WRITING_PLAN_DAYS;
+  }
+
+  function getWritingStepStatus(attempt) {
+    if (attempt?.assessment?.assessedAt) return 100;
+    if (attempt?.firstSubmission) return 66;
+    if (attempt?.draftText.trim()) return 33;
+    return 0;
+  }
+
+  async function openWritingDay(day, options = {}) {
+    const current = getCurrentWritingDay();
+    const attemptExists = Boolean(getAttempt(day));
+    if (!Number.isInteger(day) || day < 1 || day > WRITING_PLAN_DAYS || (!attemptExists && day > current)) {
+      showToast("后续练习会在当前任务完成后解锁");
+      return;
+    }
+    const plan = getWritingPlan(day);
+    if (!plan) {
+      showToast("写作目录尚未加载，请刷新页面重试", 3200);
+      return;
+    }
+    if (!state.data.writingProgram.startedAt) state.data.writingProgram.startedAt = new Date().toISOString();
+    state.currentWritingDay = day;
+    state.data.lastWritingDay = day;
+    const attempt = ensureAttempt(day);
+    saveProgress();
+    showView("writing");
+    state.writingMaterialLoaded = false;
+    elements.writingError.hidden = true;
+    elements.submitWritingButton.disabled = true;
+    elements.writingDraft.disabled = true;
+    elements.saveIndicator.textContent = options.retry ? "正在重新加载" : "正在加载材料";
+    elements.writingEyebrow.textContent = `DAY ${String(day).padStart(2, "0")} · ${plan.mode.id.toUpperCase()}`;
+    elements.writingTitle.textContent = plan.scenario.title;
+    elements.writingMeta.innerHTML = [plan.scenario.titleZh, plan.scenario.level, plan.scenario.focus, `目标${plan.target[0]}–${plan.target[1]}词`].map((value) => `<span>${escapeHtml(value)}</span>`).join("");
+    try {
+      const response = await fetch(plan.scenario.path, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Writing material failed: ${response.status}`);
+      const sections = splitSections(await response.text());
+      const required = [...WRITING_BASE_SECTIONS, plan.taskSection, plan.referenceSection];
+      if (day === 1) required.push("Baseline Task", "Baseline Reference");
+      if (day === WRITING_PLAN_DAYS) required.push("Final Task", "Final Reference");
+      const missing = Array.from(new Set(required)).filter((section) => !sections[section]);
+      if (missing.length) throw new Error(`Missing writing sections: ${missing.join(", ")}`);
+      state.writingSections = sections;
+      state.writingMaterialLoaded = true;
+      renderWritingWorkspace(plan, attempt);
+      startWritingTimer();
+    } catch (error) {
+      console.error(error);
+      state.writingMaterialLoaded = false;
+      elements.writingError.hidden = false;
+      elements.submitWritingButton.disabled = true;
+      elements.writingDraft.disabled = false;
+      elements.saveIndicator.textContent = "材料加载失败，草稿仍可编辑";
+      elements.writingDraft.value = attempt.draftText;
+      updateWordCount();
+    }
+  }
+
+  function renderWritingWorkspace(plan, attempt) {
+    const sections = state.writingSections;
+    const assessed = Boolean(attempt.assessment?.assessedAt);
+    const submitted = Boolean(attempt.firstSubmission);
+    elements.workplaceContext.innerHTML = renderMarkdown(sections["Workplace Context"]);
+    elements.writingDataBrief.innerHTML = renderMarkdown(sections["Data Brief"]);
+    elements.modelEmail.innerHTML = renderMarkdown(sections["Model Email"]);
+    elements.languageToolkit.innerHTML = renderMarkdown(sections["Language Toolkit"]);
+    elements.writingTask.innerHTML = renderMarkdown(sections[plan.taskSection]);
+    elements.writingModeLabel.textContent = plan.day === 1 ? "BASELINE WRITING" : plan.day === WRITING_PLAN_DAYS ? "FINAL WRITING" : plan.mode.label;
+    elements.writingTaskTitle.textContent = plan.day === 1 ? "15分钟基线写作" : plan.day === WRITING_PLAN_DAYS ? "第30天终测写作" : "今日写作任务";
+    elements.writingTarget.textContent = `${plan.target[0]}–${plan.target[1]} words`;
+    const showModel = plan.mode.id === "model" && plan.day !== 1 || assessed;
+    elements.modelExampleCard.hidden = !showModel;
+    const hideSupport = (plan.mode.id === "independent" || plan.day === 1) && !assessed;
+    elements.languageSupport.hidden = hideSupport;
+    elements.languageSupport.open = plan.mode.id === "model" && plan.day !== 1;
+    elements.writingDraft.disabled = false;
+    elements.writingDraft.value = attempt.draftText;
+    elements.writingDraft.placeholder = submitted ? "Revise your first submission here…" : "Write your answer in English…";
+    elements.saveIndicator.textContent = attempt.updatedAt ? "已从本地恢复草稿" : "草稿未修改";
+    updateWordCount();
+    updateTimerDisplay(attempt.activeSeconds);
+    renderWritingPanels(plan, attempt);
+  }
+
+  function renderWritingPanels(plan, attempt) {
+    const submitted = Boolean(attempt.firstSubmission);
+    const assessed = Boolean(attempt.assessment?.assessedAt);
+    elements.submitWritingButton.disabled = !state.writingMaterialLoaded || submitted;
+    elements.submitWritingButton.innerHTML = submitted ? '首次版本已保存 <span aria-hidden="true">✓</span>' : '提交首次版本 <span aria-hidden="true">→</span>';
+    elements.submissionPanel.hidden = !submitted;
+    elements.rubricForm.hidden = !submitted;
+    elements.referencePanel.hidden = !assessed;
+    if (submitted) {
+      elements.firstSubmissionText.textContent = attempt.firstSubmission.text;
+      populateRubric(attempt.assessment);
+    }
+    if (assessed) {
+      const sections = state.writingSections;
+      let reference = renderMarkdown(sections[plan.referenceSection]);
+      if (plan.day === 1) {
+        reference += `<h3>进入训练前先观察范例</h3>${renderMarkdown(sections["Model Email"])}`;
+      }
+      elements.referenceAnswer.innerHTML = reference;
+      elements.structureBreakdown.innerHTML = `<div class="markdown-body">${renderMarkdown(sections["Structure Breakdown"])}</div>`;
+      elements.oralRetell.innerHTML = renderMarkdown(sections["Oral Retell"]);
+      elements.modelExampleCard.hidden = false;
+      elements.languageSupport.hidden = false;
+      elements.saveAssessmentButton.textContent = "更新自评";
+      elements.nextWritingButton.hidden = plan.day === WRITING_PLAN_DAYS;
+      if (plan.day === WRITING_PLAN_DAYS) {
+        elements.nextWritingButton.hidden = false;
+        elements.nextWritingButton.innerHTML = '查看30天写作记录 <span aria-hidden="true">→</span>';
+      } else {
+        elements.nextWritingButton.innerHTML = '进入下一天 <span aria-hidden="true">→</span>';
+      }
+    } else {
+      elements.saveAssessmentButton.textContent = "保存自评并查看参考版本";
+    }
+  }
+
+  function onWritingInput() {
+    updateWordCount();
+    elements.saveIndicator.textContent = "正在保存…";
+    clearTimeout(onWritingInput.timer);
+    onWritingInput.timer = window.setTimeout(persistWritingDraft, 400);
+  }
+
+  function persistWritingDraft() {
+    if (!elements.writingDraft || !state.data.writingProgram.startedAt || !Number.isInteger(state.currentWritingDay)) return;
+    const attempt = getAttempt(state.currentWritingDay);
+    if (!attempt) return;
+    const value = safeText(elements.writingDraft.value, MAX_DRAFT_LENGTH);
+    if (attempt.draftText === value && attempt.updatedAt) return;
+    attempt.draftText = value;
+    attempt.updatedAt = new Date().toISOString();
+    if (saveProgress() && elements.saveIndicator) elements.saveIndicator.textContent = "已自动保存到当前浏览器";
+    if (state.data.activeProgram === "writing") renderWritingStats();
+  }
+
+  function updateWordCount() {
+    elements.wordCount.textContent = String(countEnglishWords(elements.writingDraft.value));
+  }
+
+  function countEnglishWords(value) {
+    return (String(value).match(/[A-Za-z]+(?:['’-][A-Za-z]+)*/g) || []).length;
+  }
+
+  function startWritingTimer() {
+    pauseWritingTimer();
+    const attempt = getAttempt(state.currentWritingDay);
+    if (!attempt || attempt.firstSubmission || document.hidden || state.currentView !== "writing") return;
+    state.timerLastTick = Date.now();
+    state.timerInterval = window.setInterval(tickWritingTimer, 1000);
+  }
+
+  function tickWritingTimer() {
+    const attempt = getAttempt(state.currentWritingDay);
+    if (!attempt || attempt.firstSubmission || document.hidden || state.currentView !== "writing") {
+      window.clearInterval(state.timerInterval);
+      state.timerInterval = null;
+      state.timerLastTick = null;
+      return;
+    }
+    const now = Date.now();
+    const delta = Math.min(5, Math.max(0, Math.floor((now - state.timerLastTick) / 1000)));
+    if (delta > 0) {
+      attempt.activeSeconds = Math.min(MAX_ACTIVE_SECONDS, attempt.activeSeconds + delta);
+      state.timerLastTick = now;
+      updateTimerDisplay(attempt.activeSeconds);
+      if (attempt.activeSeconds % 15 === 0) saveProgress();
+    }
+  }
+
+  function pauseWritingTimer() {
+    const attempt = getAttempt(state.currentWritingDay);
+    if (state.timerInterval && attempt && !attempt.firstSubmission && !document.hidden && state.currentView === "writing" && state.timerLastTick) {
+      const delta = Math.min(5, Math.max(0, Math.floor((Date.now() - state.timerLastTick) / 1000)));
+      attempt.activeSeconds = Math.min(MAX_ACTIVE_SECONDS, attempt.activeSeconds + delta);
+      updateTimerDisplay(attempt.activeSeconds);
+    }
+    window.clearInterval(state.timerInterval);
+    state.timerInterval = null;
+    state.timerLastTick = null;
+  }
+
+  function onVisibilityChange() {
+    if (document.hidden) {
+      pauseWritingTimer();
+      persistWritingDraft();
+    } else if (state.currentView === "writing") {
+      startWritingTimer();
+    }
+  }
+
+  function updateTimerDisplay(seconds) {
+    const value = Math.max(0, Math.floor(seconds || 0));
+    const minutes = String(Math.floor(value / 60)).padStart(2, "0");
+    const remainder = String(value % 60).padStart(2, "0");
+    elements.activeTimer.textContent = `${minutes}:${remainder}`;
+  }
+
+  function submitWriting() {
+    const attempt = getAttempt(state.currentWritingDay);
+    if (!attempt || attempt.firstSubmission || !state.writingMaterialLoaded) return;
+    const text = safeText(elements.writingDraft.value, MAX_DRAFT_LENGTH);
+    const words = countEnglishWords(text);
+    if (words < 10) {
+      showToast("至少先写10个英文词，目标字数只是提示，不会强制卡住", 3200);
+      elements.writingDraft.focus();
+      return;
+    }
+    if (!window.confirm("首次提交会保留为不可覆盖的快照。确认提交吗？")) return;
+    pauseWritingTimer();
+    attempt.draftText = text;
+    attempt.updatedAt = new Date().toISOString();
+    attempt.firstSubmission = {
+      text,
+      submittedAt: new Date().toISOString(),
+      wordCount: words,
+      activeSeconds: attempt.activeSeconds
+    };
+    saveProgress();
+    renderWritingPanels(getWritingPlan(state.currentWritingDay), attempt);
+    showToast("首次提交已保存，请完成五项自评");
+    window.setTimeout(() => elements.rubricForm.querySelector("input")?.focus({ preventScroll: true }), 0);
+  }
+
+  function renderRubricFields() {
+    elements.rubricFields.innerHTML = RUBRIC_ITEMS.map((item) => `
+      <fieldset class="rubric-row">
+        <legend><strong>${item.label}</strong><span>${item.help}</span></legend>
+        <div class="score-options">
+          ${[0, 1, 2].map((score) => `<label><input type="radio" name="${item.id}" value="${score}"><span>${score}</span></label>`).join("")}
+        </div>
+      </fieldset>
+    `).join("");
+  }
+
+  function populateRubric(assessment) {
+    RUBRIC_ITEMS.forEach((item) => {
+      const value = assessment?.scores?.[item.id];
+      elements.rubricForm.querySelector(`input[name="${item.id}"][value="${value}"]`)?.click();
+    });
+    elements.reflectionNote.value = assessment?.note || "";
+    updateRubricTotal();
+  }
+
+  function onRubricChange() {
+    updateRubricTotal();
+    saveRubricDraft();
+  }
+
+  function collectRubricScores() {
+    const scores = {};
+    const formData = new FormData(elements.rubricForm);
+    RUBRIC_ITEMS.forEach((item) => {
+      const value = Number(formData.get(item.id));
+      if (Number.isInteger(value) && value >= 0 && value <= 2) scores[item.id] = value;
+    });
+    return scores;
+  }
+
+  function updateRubricTotal() {
+    const scores = collectRubricScores();
+    const total = Object.values(scores).reduce((sum, value) => sum + value, 0);
+    elements.rubricTotal.textContent = `当前 ${total} / 10 · 已评${Object.keys(scores).length}/5项`;
+  }
+
+  function saveRubricDraft() {
+    const attempt = getAttempt(state.currentWritingDay);
+    if (!attempt?.firstSubmission) return;
+    const previousAssessedAt = attempt.assessment?.assessedAt || null;
+    attempt.assessment = {
+      scores: collectRubricScores(),
+      note: safeText(elements.reflectionNote.value, MAX_NOTE_LENGTH),
+      assessedAt: previousAssessedAt
+    };
+    saveProgress();
+  }
+
+  function submitAssessment(event) {
+    event.preventDefault();
+    const attempt = getAttempt(state.currentWritingDay);
+    if (!attempt?.firstSubmission) return;
+    const scores = collectRubricScores();
+    if (!RUBRIC_ITEMS.every((item) => Object.prototype.hasOwnProperty.call(scores, item.id))) {
+      showToast("五项都评分后才能查看参考版本", 3000);
+      return;
+    }
+    const now = new Date().toISOString();
+    const wasComplete = Boolean(attempt.completedAt);
+    attempt.assessment = {
+      scores,
+      note: safeText(elements.reflectionNote.value, MAX_NOTE_LENGTH),
+      assessedAt: attempt.assessment?.assessedAt || now
+    };
+    attempt.completedAt = attempt.completedAt || now;
+    if (state.currentWritingDay === WRITING_PLAN_DAYS && countCompletedWritingDays() === WRITING_PLAN_DAYS) {
+      state.data.writingProgram.completedAt = state.data.writingProgram.completedAt || now;
+    }
+    saveProgress();
+    renderWritingPanels(getWritingPlan(state.currentWritingDay), attempt);
+    renderWritingStats();
+    if (!wasComplete) showToast("今日训练已完成，参考版本已解锁");
+    elements.referencePanel.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  }
+
+  function openNextWriting() {
+    persistWritingDraft();
+    if (state.currentWritingDay === WRITING_PLAN_DAYS || isWritingProgramComplete()) {
+      showView("records");
+      return;
+    }
+    openWritingDay(getCurrentWritingDay());
+  }
+
+  function renderRecords() {
+    if (!elements.recordsList) return;
+    if (state.writingLoadError) {
+      elements.recordsList.innerHTML = '<div class="error-state"><p>写作目录加载失败，请刷新页面后重试</p></div>';
+      return;
+    }
+    if (!state.writingManifest.length) {
+      elements.recordsList.innerHTML = '<div class="loading-state">正在加载写作记录…</div>';
+      return;
+    }
+    renderBenchmark();
+    const attempts = state.data.writingProgram.attempts;
+    const hasAny = Object.values(attempts).some((attempt) => attempt.draftText || attempt.firstSubmission);
+    if (!hasAny) {
+      elements.recordsList.innerHTML = '<div class="empty-records"><strong>还没有写作记录</strong><span>开始第1天后，草稿和首次提交会显示在这里</span></div>';
+      return;
+    }
+    elements.recordsList.innerHTML = state.writingManifest.map((scenario, scenarioIndex) => {
+      const dayCards = WRITING_MODES.map((mode, modeIndex) => {
+        const day = scenarioIndex * 3 + modeIndex + 1;
+        const attempt = attempts[String(day)];
+        const score = attempt?.assessment?.assessedAt ? assessmentTotal(attempt.assessment) : null;
+        const status = attempt?.completedAt ? "已完成" : attempt?.firstSubmission ? "待自评" : attempt?.draftText ? "草稿中" : "未开始";
+        const revision = attempt?.firstSubmission && attempt.draftText !== attempt.firstSubmission.text;
+        return `<article class="record-card ${attempt?.completedAt ? "is-complete" : ""}">
+          <div class="record-card-head">
+            <div><span>DAY ${String(day).padStart(2, "0")} · ${mode.label}</span><strong>${status}</strong></div>
+            <button class="secondary-button" type="button" data-writing-day="${day}" ${!attempt && day > getCurrentWritingDay() ? "disabled" : ""}>${attempt ? "打开记录" : day === getCurrentWritingDay() ? "开始" : "未解锁"}</button>
+          </div>
+          <div class="record-metrics">
+            <span>首次字数 <strong>${attempt?.firstSubmission?.wordCount ?? "—"}</strong></span>
+            <span>有效用时 <strong>${attempt?.firstSubmission ? formatDuration(attempt.firstSubmission.activeSeconds) : "—"}</strong></span>
+            <span>自评 <strong>${score === null ? "—" : `${score}/10`}</strong></span>
+          </div>
+          ${attempt?.firstSubmission ? `<details class="record-text"><summary>查看首次提交${revision ? "与修改版" : ""}</summary><div><p>首次提交</p><pre data-record-first="${day}"></pre><button class="text-button" type="button" data-copy-day="${day}" data-copy-kind="first">复制首次提交</button></div>${revision ? `<div><p>当前修改版</p><pre data-record-revision="${day}"></pre><button class="text-button" type="button" data-copy-day="${day}" data-copy-kind="revision">复制修改版</button></div>` : ""}</details>` : ""}
+        </article>`;
+      }).join("");
+      return `<section class="scenario-record"><div class="scenario-record-title"><span>${String(scenarioIndex + 1).padStart(2, "0")}</span><div><h2>${escapeHtml(scenario.titleZh)}</h2><p>${escapeHtml(scenario.focus)}</p></div></div><div class="scenario-days">${dayCards}</div></section>`;
+    }).join("");
+    Object.entries(attempts).forEach(([day, attempt]) => {
+      const first = elements.recordsList.querySelector(`[data-record-first="${day}"]`);
+      const revision = elements.recordsList.querySelector(`[data-record-revision="${day}"]`);
+      if (first) first.textContent = attempt.firstSubmission?.text || "";
+      if (revision) revision.textContent = attempt.draftText;
+    });
+  }
+
+  function renderBenchmark() {
+    const baseline = getAttempt(1);
+    const final = getAttempt(WRITING_PLAN_DAYS);
+    if (!baseline?.completedAt || !final?.completedAt) {
+      elements.benchmarkPanel.innerHTML = '<p class="section-kicker">BASELINE VS FINAL</p><h2 id="benchmarkTitle">完成第1天和第30天后显示对比</h2><p>对比有效用时、目标字数和五项自评分，不把主观评分解释成客观考试成绩</p>';
+      return;
+    }
+    const baseScore = assessmentTotal(baseline.assessment);
+    const finalScore = assessmentTotal(final.assessment);
+    elements.benchmarkPanel.innerHTML = `
+      <p class="section-kicker">BASELINE VS FINAL</p>
+      <h2 id="benchmarkTitle">第1天与第30天自我对比</h2>
+      <div class="benchmark-grid">
+        <div><span>有效用时</span><strong>${formatDuration(baseline.firstSubmission.activeSeconds)} → ${formatDuration(final.firstSubmission.activeSeconds)}</strong></div>
+        <div><span>首次字数</span><strong>${baseline.firstSubmission.wordCount} → ${final.firstSubmission.wordCount}</strong></div>
+        <div><span>自评总分</span><strong>${baseScore}/10 → ${finalScore}/10</strong></div>
+      </div>
+      <div class="rubric-comparison">${RUBRIC_ITEMS.map((item) => `<span>${item.label}<strong>${baseline.assessment.scores[item.id]} → ${final.assessment.scores[item.id]}</strong></span>`).join("")}</div>
+      <p>这些变化用于复盘自己的写作过程，不等同于标准化英语考试结果</p>
+    `;
+  }
+
+  function assessmentTotal(assessment) {
+    return RUBRIC_ITEMS.reduce((sum, item) => sum + (Number(assessment?.scores?.[item.id]) || 0), 0);
+  }
+
+  function copyRecord(day, kind) {
+    const attempt = getAttempt(day);
+    if (!attempt) return;
+    const text = kind === "revision" ? attempt.draftText : attempt.firstSubmission?.text;
+    if (text) copyText(text, kind === "revision" ? "修改版已复制" : "首次提交已复制");
+  }
+
+  async function copyText(value, successMessage) {
+    if (!value) {
+      showToast("当前没有可复制的内容");
+      return;
+    }
+    try {
+      if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const helper = document.createElement("textarea");
+        helper.value = value;
+        helper.setAttribute("readonly", "");
+        helper.style.position = "fixed";
+        helper.style.opacity = "0";
+        document.body.appendChild(helper);
+        helper.select();
+        if (!document.execCommand("copy")) throw new Error("Copy command failed");
+        helper.remove();
+      }
+      showToast(successMessage);
+    } catch (error) {
+      console.warn("Copy failed", error);
+      showToast("浏览器未允许复制，请在编辑器中手动选择文本", 3600);
+    }
+  }
+
+  function formatDuration(seconds) {
+    const value = Math.max(0, Math.floor(seconds || 0));
+    const minutes = Math.floor(value / 60);
+    const remainder = value % 60;
+    return minutes ? `${minutes}分${String(remainder).padStart(2, "0")}秒` : `${remainder}秒`;
+  }
+
+  function calculateWritingStreak() {
+    const dates = new Set(Object.values(state.data.writingProgram.attempts).map((attempt) => attempt.completedAt).filter(Boolean).map((iso) => localDateKey(new Date(iso))));
+    return calculateDateSetStreak(dates);
+  }
+
+  function calculateDateSetStreak(dates) {
+    let streak = 0;
+    const cursor = new Date();
+    if (!dates.has(localDateKey(cursor))) cursor.setDate(cursor.getDate() - 1);
+    while (dates.has(localDateKey(cursor))) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  }
+
+  function onReadingTaskChange() {
+    if (state.data.activeProgram !== "reading") return;
     const today = localDateKey(new Date());
     state.data.daily[today] = Array.from(elements.dailyTaskList.querySelectorAll("input:checked")).map((input) => input.value);
     saveProgress();
-    updateDailyPercent();
-    updateStats();
-    if (isDateComplete(today)) showToast("今日4项任务已完成，连续学习记录已更新");
+    updateReadingDailyPercent();
+    renderReadingStats();
+    if (isReadingDateComplete(today)) showToast("今日4项阅读任务已完成");
   }
 
-  function updateDailyPercent() {
-    if (isPlanFinished()) {
-      const completedDays = countCompletedPlanDays();
-      elements.dailyPercent.textContent = `${Math.round((completedDays / PLAN_DAYS) * 100)}%`;
-      return;
-    }
+  function updateReadingDailyPercent() {
+    if (isReadingPlanFinished()) return;
     const today = localDateKey(new Date());
-    const tasks = getTodayPlan()?.mode.tasks || DAY_MODES[0].tasks;
+    const tasks = getReadingPlan()?.mode.tasks || READING_DAY_MODES[0].tasks;
     const required = new Set(tasks.map((task) => task.id));
     const count = (state.data.daily[today] || []).filter((id) => required.has(id)).length;
     elements.dailyPercent.textContent = `${Math.round((count / tasks.length) * 100)}%`;
     elements.dailyPercent.classList.toggle("is-complete", count === tasks.length);
   }
 
-  function renderDashboard() {
-    const plan = getTodayPlan();
-    const article = plan?.article;
-    if (!article) return;
-    elements.todayAssignment.innerHTML = `
-      <p class="assignment-type">第${plan.day}天 · ${escapeHtml(plan.mode.title.split(" · ")[0])}</p>
-      <h2 id="assignmentTitle">${escapeHtml(article.title)}</h2>
-      <p>${escapeHtml(plan.mode.description)}。${escapeHtml(article.summary)}</p>
-      <div class="assignment-meta">
-        <span class="meta-pill">${escapeHtml(article.level)}</span>
-        <span class="meta-pill">35分钟</span>
-        <span class="meta-pill">${escapeHtml(article.focus)}</span>
-      </div>
-    `;
-    const startLabel = isPlanFinished() ? "回顾最后一篇" : plan.mode.id === "learn" ? "开始今日阅读" : "打开今日复习文章";
-    elements.startReadingButton.innerHTML = `${startLabel} <span aria-hidden="true">→</span>`;
-    const lastItem = state.manifest.find((item) => item.id === state.data.lastReader?.itemId);
-    const canResume = lastItem && lastItem.id !== article.id;
-    elements.resumeReadingButton.hidden = !canResume;
-    if (canResume) elements.resumeReadingButton.textContent = `继续上次：${lastItem.title}`;
-    elements.roadmapList.querySelectorAll("li").forEach((item) => {
-      const current = plan.day >= Number(item.dataset.start) && plan.day <= Number(item.dataset.end);
-      item.classList.toggle("is-current", current);
-    });
-  }
-
-  function getTodayPlan(date = new Date()) {
+  function getReadingPlan(date = new Date()) {
     const articles = state.manifest.filter((item) => item.type === "article");
     if (!articles.length) return null;
-    const day = getPlanDay(date);
-    const articleIndex = Math.min(articles.length - 1, Math.floor((day - 1) / DAY_MODES.length));
-    return { day, article: articles[articleIndex], mode: DAY_MODES[(day - 1) % DAY_MODES.length] };
+    const day = getReadingPlanDay(date);
+    const articleIndex = Math.min(articles.length - 1, Math.floor((day - 1) / READING_DAY_MODES.length));
+    return { day, article: articles[articleIndex], mode: READING_DAY_MODES[(day - 1) % READING_DAY_MODES.length] };
   }
 
-  function getPlanDay(date) {
-    return Math.min(PLAN_DAYS, Math.max(1, daysBetween(parseLocalDate(state.data.startedAt), date) + 1));
+  function getReadingPlanDay(date = new Date()) {
+    return Math.min(READING_PLAN_DAYS, Math.max(1, daysBetween(parseLocalDate(state.data.startedAt), date) + 1));
   }
 
-  function isPlanFinished(date = new Date()) {
-    return daysBetween(parseLocalDate(state.data.startedAt), date) + 1 > PLAN_DAYS;
+  function isReadingPlanFinished(date = new Date()) {
+    return daysBetween(parseLocalDate(state.data.startedAt), date) + 1 > READING_PLAN_DAYS;
+  }
+
+  function isReadingDateComplete(dateKey) {
+    const date = parseLocalDate(dateKey);
+    if (Number.isNaN(date.getTime())) return false;
+    const rawDay = daysBetween(parseLocalDate(state.data.startedAt), date) + 1;
+    if (rawDay < 1 || rawDay > READING_PLAN_DAYS) return false;
+    const required = READING_DAY_MODES[(rawDay - 1) % READING_DAY_MODES.length].tasks.map((task) => task.id);
+    const checked = new Set(state.data.daily[dateKey] || []);
+    return required.every((id) => checked.has(id));
+  }
+
+  function countCompletedReadingDays() {
+    const start = parseLocalDate(state.data.startedAt);
+    let count = 0;
+    for (let index = 0; index < READING_PLAN_DAYS; index += 1) {
+      const date = new Date(start);
+      date.setDate(start.getDate() + index);
+      if (isReadingDateComplete(localDateKey(date))) count += 1;
+    }
+    return count;
+  }
+
+  function calculateReadingStreak() {
+    let streak = 0;
+    const cursor = new Date();
+    if (!isReadingDateComplete(localDateKey(cursor))) cursor.setDate(cursor.getDate() - 1);
+    while (isReadingDateComplete(localDateKey(cursor))) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
   }
 
   function filteredItems() {
     return state.manifest.filter((item) => {
       const matchesLevel = state.activeLevel === "all" || item.level === state.activeLevel;
-      const haystack = `${item.title} ${item.titleZh || ""} ${item.tags.join(" ")} ${item.focus}`.toLowerCase();
+      const tags = Array.isArray(item.tags) ? item.tags.join(" ") : "";
+      const haystack = `${item.title || ""} ${item.titleZh || ""} ${tags} ${item.focus || ""}`.toLowerCase();
       return matchesLevel && (!state.query || haystack.includes(state.query));
     });
   }
 
   function renderLibrary() {
+    if (!elements.libraryList) return;
+    if (state.readingLoadError) {
+      elements.libraryList.innerHTML = '<div class="error-box"><p>阅读目录加载失败</p><button class="secondary-button" id="retryManifestButton" type="button">重新加载</button></div>';
+      elements.libraryCards.innerHTML = '<div class="error-state"><p>请检查网络后重新加载阅读目录</p></div>';
+      document.getElementById("retryManifestButton")?.addEventListener("click", loadReadingManifest);
+      return;
+    }
     const items = filteredItems();
     elements.libraryList.innerHTML = items.length ? items.map((item) => {
       const done = state.data.completed.includes(item.id);
-      return `<button class="library-item ${state.currentItem?.id === item.id ? "is-current" : ""}" type="button" data-id="${item.id}">
-        <strong>${escapeHtml(item.title)}</strong>
-        <small>${escapeHtml(item.type === "framework" ? "学习框架" : `${item.level} · ${item.minutes}分钟`)}</small>
-        ${done ? '<span class="done-dot" aria-label="已读"></span>' : ""}
-      </button>`;
-    }).join("") : '<p class="empty-list">没有符合条件的文章</p>';
-
+      return `<button class="library-item ${state.currentItem?.id === item.id ? "is-current" : ""}" type="button" data-id="${escapeHtml(item.id)}"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.type === "framework" ? "学习框架" : `${item.level} · ${item.minutes}分钟`)}${done ? " · 已完成" : ""}</small></button>`;
+    }).join("") : '<p class="empty-list">当前筛选下没有文章</p>';
     elements.libraryList.querySelectorAll("[data-id]").forEach((button) => button.addEventListener("click", () => openItem(button.dataset.id)));
-
     const articles = items.filter((item) => item.type === "article");
     elements.libraryCards.innerHTML = articles.length ? articles.map((item) => `
-      <button class="article-card ${state.data.completed.includes(item.id) ? "is-complete" : ""}" type="button" data-id="${item.id}">
-        <span class="article-card-number">${item.order}</span>
-        <span>
-          <span class="card-title">${escapeHtml(item.title)}</span>
-          <span class="card-summary">${escapeHtml(item.summary)}</span>
-          <span class="card-meta"><span>${escapeHtml(item.level)}</span><span>${item.minutes}分钟</span><span>${escapeHtml(item.focus)}</span></span>
-        </span>
+      <button class="article-card ${state.data.completed.includes(item.id) ? "is-complete" : ""}" type="button" data-id="${escapeHtml(item.id)}">
+        <span class="article-card-number">${escapeHtml(item.order)}</span>
+        <span><span class="card-title">${escapeHtml(item.title)}</span><span class="card-summary">${escapeHtml(item.summary)}</span><span class="card-meta"><span>${escapeHtml(item.level)}</span><span>${item.minutes}分钟</span><span>${escapeHtml(item.focus)}</span></span></span>
       </button>
     `).join("") : '<p class="empty-list">当前筛选下没有数据分析文章</p>';
     elements.libraryCards.querySelectorAll("[data-id]").forEach((button) => button.addEventListener("click", () => openItem(button.dataset.id)));
@@ -444,7 +1363,6 @@
     state.bilingual = item.type === "article" && Boolean(savedReader?.bilingual);
     elements.bilingualButton.setAttribute("aria-pressed", String(state.bilingual));
     updateLastReader({ itemId: id, section: state.activeSection, bilingual: state.bilingual, scrollY: savedReader?.scrollY || 0 });
-    saveProgress();
     showView("reader");
     renderReaderHeader();
     [elements.completeButton, elements.completeButtonBottom].forEach((button) => { button.disabled = true; });
@@ -461,8 +1379,8 @@
         elements.readerContent.innerHTML = `<div class="markdown-body">${renderMarkdown(markdown)}</div>`;
       } else {
         state.currentSections = splitSections(markdown);
-        const missingSections = ARTICLE_SECTIONS.filter((section) => !state.currentSections[section]);
-        if (missingSections.length) throw new Error(`Missing article sections: ${missingSections.join(", ")}`);
+        const missing = ARTICLE_SECTIONS.filter((section) => !state.currentSections[section]);
+        if (missing.length) throw new Error(`Missing article sections: ${missing.join(", ")}`);
         elements.readerToolbar.hidden = false;
         renderSectionTabs();
         renderArticleSection();
@@ -486,9 +1404,7 @@
   }
 
   function renderSectionTabs() {
-    elements.sectionTabs.innerHTML = ARTICLE_SECTIONS.map((section) => `
-      <button id="tab-${section.replace(/\s+/g, "-").toLowerCase()}" type="button" role="tab" data-section="${section}" aria-controls="readerContent" aria-selected="${section === state.activeSection}" tabindex="${section === state.activeSection ? "0" : "-1"}">${SECTION_LABELS[section]}</button>
-    `).join("");
+    elements.sectionTabs.innerHTML = ARTICLE_SECTIONS.map((section) => `<button id="tab-${section.replace(/\s+/g, "-").toLowerCase()}" type="button" role="tab" data-section="${section}" aria-controls="readerContent" aria-selected="${section === state.activeSection}" tabindex="${section === state.activeSection ? "0" : "-1"}">${SECTION_LABELS[section]}</button>`).join("");
     elements.readerContent.setAttribute("aria-labelledby", `tab-${state.activeSection.replace(/\s+/g, "-").toLowerCase()}`);
   }
 
@@ -520,10 +1436,7 @@
         button.tabIndex = button.dataset.section === "English Original" ? 0 : -1;
       });
       elements.readerContent.removeAttribute("aria-labelledby");
-      elements.readerContent.innerHTML = `<div class="bilingual-grid">
-        <section class="bilingual-panel"><p class="panel-label">ENGLISH ORIGINAL</p><div class="markdown-body">${renderMarkdown(state.currentSections["English Original"] || "")}</div></section>
-        <section class="bilingual-panel"><p class="panel-label">中文翻译</p><div class="markdown-body">${renderMarkdown(state.currentSections["Chinese Translation"] || "")}</div></section>
-      </div>`;
+      elements.readerContent.innerHTML = `<div class="bilingual-grid"><section class="bilingual-panel"><p class="panel-label">ENGLISH ORIGINAL</p><div class="markdown-body">${renderMarkdown(state.currentSections["English Original"] || "")}</div></section><section class="bilingual-panel"><p class="panel-label">中文翻译</p><div class="markdown-body">${renderMarkdown(state.currentSections["Chinese Translation"] || "")}</div></section></div>`;
       return;
     }
     elements.sectionTabs.querySelectorAll("button").forEach((button) => {
@@ -532,7 +1445,7 @@
       button.tabIndex = active ? 0 : -1;
     });
     elements.readerContent.setAttribute("aria-labelledby", `tab-${state.activeSection.replace(/\s+/g, "-").toLowerCase()}`);
-    let source = state.currentSections[state.activeSection] || "## 内容缺失\n\n这部分内容尚未准备";
+    const source = state.currentSections[state.activeSection] || "## 内容缺失\n\n这部分内容尚未准备";
     if (state.activeSection === "Reading Questions" && source.includes("### Answer Key")) {
       const [questions, answers] = source.split("### Answer Key");
       elements.readerContent.innerHTML = `<div class="markdown-body">${renderMarkdown(questions)}<details><summary>查看参考答案</summary>${renderMarkdown(answers)}</details></div>`;
@@ -556,11 +1469,10 @@
   }
 
   function renderMarkdown(markdown) {
-    const lines = markdown.replace(/\r/g, "").split("\n");
+    const lines = String(markdown || "").replace(/\r/g, "").split("\n");
     const html = [];
     let paragraph = [];
     let listType = null;
-
     const flushParagraph = () => {
       if (paragraph.length) html.push(`<p>${inlineMarkdown(paragraph.join(" "))}</p>`);
       paragraph = [];
@@ -569,27 +1481,23 @@
       if (listType) html.push(`</${listType}>`);
       listType = null;
     };
-
-    for (let i = 0; i < lines.length; i += 1) {
-      const line = lines[i].trim();
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index].trim();
       if (!line) { flushParagraph(); closeList(); continue; }
-
-      if (line.startsWith("|") && lines[i + 1]?.trim().match(/^\|?\s*:?-+/)) {
+      if (line.startsWith("|") && lines[index + 1]?.trim().match(/^\|?\s*:?-+/)) {
         flushParagraph(); closeList();
         const headers = tableCells(line);
-        i += 2;
+        index += 2;
         const rows = [];
-        while (i < lines.length && lines[i].trim().startsWith("|")) { rows.push(tableCells(lines[i].trim())); i += 1; }
-        i -= 1;
+        while (index < lines.length && lines[index].trim().startsWith("|")) { rows.push(tableCells(lines[index].trim())); index += 1; }
+        index -= 1;
         html.push(`<table><thead><tr>${headers.map((cell) => `<th>${inlineMarkdown(cell)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${inlineMarkdown(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`);
         continue;
       }
-
       const heading = line.match(/^(#{1,3})\s+(.+)$/);
-      if (heading) { flushParagraph(); closeList(); const level = heading[1].length; html.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`); continue; }
+      if (heading) { flushParagraph(); closeList(); html.push(`<h${heading[1].length}>${inlineMarkdown(heading[2])}</h${heading[1].length}>`); continue; }
       if (/^---+$/.test(line)) { flushParagraph(); closeList(); html.push("<hr>"); continue; }
       if (line.startsWith("> ")) { flushParagraph(); closeList(); html.push(`<blockquote>${inlineMarkdown(line.slice(2))}</blockquote>`); continue; }
-
       const unordered = line.match(/^[-*]\s+(.+)$/);
       const ordered = line.match(/^\d+[.)]\s+(.+)$/);
       if (unordered || ordered) {
@@ -611,7 +1519,10 @@
 
   function inlineMarkdown(value) {
     const code = [];
-    let safe = escapeHtml(value).replace(/`([^`]+)`/g, (_, content) => { code.push(`<code>${content}</code>`); return `%%CODE${code.length - 1}%%`; });
+    let safe = escapeHtml(value).replace(/`([^`]+)`/g, (_, content) => {
+      code.push(`<code>${content}</code>`);
+      return `%%CODE${code.length - 1}%%`;
+    });
     safe = safe.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>");
     return safe.replace(/%%CODE(\d+)%%/g, (_, index) => code[Number(index)]);
   }
@@ -642,7 +1553,7 @@
     saveProgress();
     button.classList.toggle("is-saved", !exists);
     button.textContent = exists ? "记住" : "已掌握";
-    updateStats();
+    if (state.data.activeProgram === "reading") renderReadingStats();
     showToast(exists ? `已移出词汇：${word}` : `已掌握：${word}`);
   }
 
@@ -651,19 +1562,18 @@
     const id = state.currentItem.id;
     const exists = state.data.completed.includes(id);
     state.data.completed = exists ? state.data.completed.filter((item) => item !== id) : [...state.data.completed, id];
-    const todayPlan = getTodayPlan();
+    const todayPlan = getReadingPlan();
     if (state.currentItem.type === "article" && todayPlan?.article.id === id && todayPlan.mode.id === "learn") {
       const today = localDateKey(new Date());
       const tasks = new Set(state.data.daily[today] || []);
       if (exists) tasks.delete("read");
       else tasks.add("read");
       state.data.daily[today] = Array.from(tasks);
-      renderDailyTasks();
     }
     saveProgress();
     updateCompleteButtons();
-    updateStats();
     renderLibrary();
+    if (state.data.activeProgram === "reading") renderReadingStats();
     showToast(exists ? "已取消完成标记" : "本篇已完成");
   }
 
@@ -676,68 +1586,12 @@
     });
   }
 
-  function updateStats() {
-    const articleIds = state.manifest.filter((item) => item.type === "article").map((item) => item.id);
-    const completed = state.data.completed.filter((id) => articleIds.includes(id)).length;
-    const streak = calculateStreak();
-    const completedDays = countCompletedPlanDays();
-    elements.statCompleted.textContent = String(completed);
-    elements.statWords.textContent = String(state.data.learnedWords.length);
-    elements.statStreak.textContent = String(streak);
-    elements.headerStreak.textContent = `连续 ${streak} 天`;
-    elements.headerProgress.textContent = `计划 ${completedDays} / ${PLAN_DAYS}`;
-    const percent = Math.round((completedDays / PLAN_DAYS) * 100);
-    elements.progressBar.style.width = `${percent}%`;
-    elements.progressBar.parentElement.setAttribute("aria-label", `30天计划已完成${completedDays}天`);
-    elements.progressCopy.textContent = completedDays ? `30天验证计划已完成${percent}%，只有4项任务全部勾选才计入` : `从今天开始，完成4项任务后记录第1个学习日`;
-  }
-
-  function calculateStreak() {
-    let streak = 0;
-    const cursor = new Date();
-    const todayKey = localDateKey(cursor);
-    if (!isDateComplete(todayKey)) cursor.setDate(cursor.getDate() - 1);
-    while (isDateComplete(localDateKey(cursor))) {
-      streak += 1;
-      cursor.setDate(cursor.getDate() - 1);
-    }
-    return streak;
-  }
-
-  function isDateComplete(dateKey) {
-    const date = parseLocalDate(dateKey);
-    if (Number.isNaN(date.getTime())) return false;
-    const rawDay = daysBetween(parseLocalDate(state.data.startedAt), date) + 1;
-    if (rawDay < 1 || rawDay > PLAN_DAYS) return false;
-    const required = DAY_MODES[(rawDay - 1) % DAY_MODES.length].tasks.map((task) => task.id);
-    const checked = new Set(state.data.daily[dateKey] || []);
-    return required.every((id) => checked.has(id));
-  }
-
-  function countCompletedPlanDays() {
-    const start = parseLocalDate(state.data.startedAt);
-    let count = 0;
-    for (let index = 0; index < PLAN_DAYS; index += 1) {
-      const date = new Date(start);
-      date.setDate(start.getDate() + index);
-      if (isDateComplete(localDateKey(date))) count += 1;
-    }
-    return count;
-  }
-
   function changeFont(delta) {
     state.fontScale = Math.min(1.3, Math.max(0.8, Number((state.fontScale + delta).toFixed(1))));
     state.data.fontScale = state.fontScale;
     saveProgress();
     document.documentElement.style.setProperty("--reader-scale", state.fontScale);
     showToast(`正文字号 ${Math.round(state.fontScale * 100)}%`);
-  }
-
-  function showToast(message, duration = 1800) {
-    elements.toast.textContent = message;
-    elements.toast.classList.add("is-visible");
-    clearTimeout(showToast.timer);
-    showToast.timer = setTimeout(() => elements.toast.classList.remove("is-visible"), duration);
   }
 
   function updateLastReader(changes) {
@@ -756,13 +1610,10 @@
   }
 
   function exportProgress() {
+    pauseWritingTimer();
+    persistWritingDraft();
     saveReaderPosition({ type: "beforeunload" });
-    const payload = {
-      app: "Metric English",
-      schemaVersion: STORAGE_SCHEMA,
-      exportedAt: new Date().toISOString(),
-      data: state.data
-    };
+    const payload = { app: "Metric English", schemaVersion: STORAGE_SCHEMA, exportedAt: new Date().toISOString(), data: state.data };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -772,6 +1623,7 @@
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    if (state.currentView === "writing") startWritingTimer();
     showToast("学习进度已导出");
   }
 
@@ -786,14 +1638,13 @@
     try {
       const parsed = JSON.parse(await file.text());
       const imported = sanitizeProgress(parsed?.data || parsed);
-      if (!window.confirm("导入会覆盖当前浏览器中的学习进度。确认继续吗？")) return;
+      if (!window.confirm("导入会覆盖当前浏览器中的阅读、写作和草稿进度。确认继续吗？")) return;
+      pauseWritingTimer();
       state.data = imported;
       state.fontScale = imported.fontScale;
       document.documentElement.style.setProperty("--reader-scale", state.fontScale);
       state.data.lastView = "dashboard";
       saveProgress();
-      setTodayLabels();
-      renderDailyTasks();
       renderAll();
       showView("dashboard");
       showToast("学习进度导入成功", 2800);
@@ -801,6 +1652,21 @@
       console.error("Progress import failed", error);
       showToast("导入失败：不是有效的Metric English进度文件", 3600);
     }
+  }
+
+  function showToast(message, duration = 1800) {
+    elements.toast.textContent = message;
+    elements.toast.classList.add("is-visible");
+    clearTimeout(showToast.timer);
+    showToast.timer = setTimeout(() => elements.toast.classList.remove("is-visible"), duration);
+  }
+
+  function debounce(callback, wait) {
+    let timer;
+    return function (...args) {
+      clearTimeout(timer);
+      timer = setTimeout(() => callback.apply(this, args), wait);
+    };
   }
 
   function localDateKey(date) {
@@ -811,7 +1677,7 @@
   }
 
   function parseLocalDate(value) {
-    const [year, month, day] = value.split("-").map(Number);
+    const [year, month, day] = String(value).split("-").map(Number);
     return new Date(year, month - 1, day);
   }
 

@@ -3,43 +3,41 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="面向数据分析师的个人英语阅读训练台">
+    <meta name="description" content="面向数据分析师的英语阅读与职场写作训练台">
     <meta name="theme-color" content="#17324d">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
     <link rel="icon" href="data:,">
-    <title>Metric English · 英语阅读训练台</title>
+    <title>Metric English · 数据分析英语训练台</title>
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
     <a class="skip-link" href="#mainContent">跳到主要内容</a>
 
     <header class="topbar">
-      <button class="brand" type="button" data-view="dashboard" aria-label="返回今日计划">
+      <button class="brand" type="button" data-view="dashboard" aria-label="返回今日训练">
         <span class="brand-mark" aria-hidden="true">M.</span>
         <span>
           <strong>Metric English</strong>
-          <small>Read for the work you want</small>
+          <small>Write for the work you want</small>
         </span>
       </button>
       <div class="topbar-status" aria-label="学习状态">
-        <span id="headerStreak">连续 0 天</span>
+        <span id="headerStreak">写作连续 0 天</span>
         <span class="status-divider" aria-hidden="true"></span>
-        <span id="headerProgress">完成 0 / 10</span>
+        <span id="headerProgress">写作 0 / 30</span>
       </div>
-        <button class="menu-button" id="menuButton" type="button" aria-controls="sidebar" aria-expanded="false">资料库</button>
+      <button class="menu-button" id="menuButton" type="button" aria-controls="sidebar" aria-expanded="false">导航</button>
     </header>
 
     <div class="app-shell">
       <aside class="sidebar" id="sidebar" aria-label="学习导航">
         <nav class="primary-nav" aria-label="主导航">
-          <button class="nav-button is-active" type="button" data-view="dashboard">
-            <span aria-hidden="true">01</span> 今日计划
-          </button>
-          <button class="nav-button" type="button" data-view="library">
-            <span aria-hidden="true">02</span> 阅读资料库
-          </button>
+          <button class="nav-button is-active" type="button" data-view="dashboard"><span aria-hidden="true">01</span> 今日训练</button>
+          <button class="nav-button" type="button" data-view="records"><span aria-hidden="true">02</span> 写作记录</button>
+          <button class="nav-button" type="button" data-view="library"><span aria-hidden="true">03</span> 阅读资料库</button>
         </nav>
 
-        <div class="library-tools">
+        <div class="library-tools" id="libraryTools">
           <label class="search-field">
             <span>搜索文章</span>
             <input id="searchInput" type="search" placeholder="例如：dashboard" autocomplete="off">
@@ -53,22 +51,27 @@
         </div>
 
         <div class="library-list" id="libraryList" aria-live="polite"></div>
-        <p class="sidebar-note">进度保存在当前浏览器，可在学习信号中导出备份</p>
+        <p class="sidebar-note">草稿和进度只保存在当前浏览器，可导出JSON备份</p>
       </aside>
 
-      <button class="sidebar-scrim" id="sidebarScrim" type="button" aria-label="关闭资料库" tabindex="-1" hidden></button>
+      <button class="sidebar-scrim" id="sidebarScrim" type="button" aria-label="关闭导航" tabindex="-1" hidden></button>
 
       <main id="mainContent" tabindex="-1">
         <section class="dashboard-view" id="dashboardView" aria-labelledby="dashboardTitle">
+          <div class="program-switch" role="group" aria-label="训练阶段">
+            <button type="button" data-program="writing" aria-pressed="true"><span>V1.2</span><strong>职场写作</strong></button>
+            <button type="button" data-program="reading" aria-pressed="false"><span>V1.1</span><strong>阅读基础</strong></button>
+          </div>
+
           <div class="dashboard-hero">
             <div>
               <p class="eyebrow" id="todayLabel">TODAY</p>
-              <h1 id="dashboardTitle">把英语练进工作里</h1>
-              <p class="hero-copy">每天35分钟，读一篇、记八词、拆一句、答两题。先建立稳定输入，再把数据分析术语变成能开口使用的工作语言</p>
+              <h1 id="dashboardTitle">把分析写成能推动决策的英文</h1>
+              <p class="hero-copy" id="heroCopy">每天30–35分钟，在真实的数据分析情境中完成一封邮件或一段分析结论</p>
             </div>
-            <div class="day-counter" aria-label="30天学习进度">
+            <div class="day-counter" id="dayCounter" aria-label="30天训练进度">
               <span id="dayNumber">001</span>
-              <small>/ 030 DAYS</small>
+              <small id="dayTotal">/ 030 DAYS</small>
             </div>
           </div>
 
@@ -76,35 +79,33 @@
             <section class="panel today-panel" aria-labelledby="todayPlanTitle">
               <div class="panel-heading">
                 <div>
-                  <p class="section-kicker" id="todayModeLabel">LEARN DAY</p>
+                  <p class="section-kicker" id="todayModeLabel">MODEL DAY</p>
                   <h2 id="todayPlanTitle">今日35分钟</h2>
                 </div>
                 <span class="completion-ring" id="dailyPercent">0%</span>
               </div>
               <div class="daily-task-list" id="dailyTaskList"></div>
-              <button class="primary-button" id="startReadingButton" type="button">开始今日阅读 <span aria-hidden="true">→</span></button>
+              <button class="primary-button" id="startTrainingButton" type="button" disabled>开始今日训练 <span aria-hidden="true">→</span></button>
               <button class="secondary-button" id="resumeReadingButton" type="button" hidden>继续上次阅读</button>
             </section>
 
             <section class="panel assignment-panel" aria-labelledby="assignmentTitle">
               <p class="section-kicker">TODAY'S BRIEF</p>
-              <div id="todayAssignment">
-                <h2 id="assignmentTitle">正在准备今日文章</h2>
+              <div id="todayAssignment" aria-live="polite">
+                <h2 id="assignmentTitle">正在准备今日内容</h2>
               </div>
             </section>
 
             <section class="panel stats-panel" aria-labelledby="statsTitle">
               <p class="section-kicker">YOUR SIGNAL</p>
-              <h2 id="statsTitle">学习信号</h2>
+              <h2 id="statsTitle">训练信号</h2>
               <div class="stats-grid">
-                <div><strong id="statCompleted">0</strong><span>已读文章</span></div>
-                <div><strong id="statWords">0</strong><span>已掌握词汇</span></div>
-                <div><strong id="statStreak">0</strong><span>连续天数</span></div>
+                <div><strong id="statCompleted">0</strong><span id="statCompletedLabel">完成天数</span></div>
+                <div><strong id="statWords">0</strong><span id="statWordsLabel">已有草稿</span></div>
+                <div><strong id="statStreak">0</strong><span id="statStreakLabel">最近自评</span></div>
               </div>
-              <div class="progress-track" aria-label="首批文章完成进度">
-                <span id="progressBar"></span>
-              </div>
-              <p id="progressCopy">首批10篇文章，等待你的第一条记录</p>
+              <div class="progress-track" id="progressTrack" aria-label="30天写作计划进度"><span id="progressBar"></span></div>
+              <p id="progressCopy">开始第1次写作后记录训练进度</p>
               <div class="data-actions" aria-label="学习数据备份">
                 <button class="secondary-button" id="exportProgressButton" type="button">导出进度</button>
                 <button class="secondary-button" id="importProgressButton" type="button">导入进度</button>
@@ -115,19 +116,31 @@
             <section class="panel roadmap-panel" aria-labelledby="roadmapTitle">
               <div class="panel-heading">
                 <div>
-                  <p class="section-kicker">30-DAY VALIDATION</p>
-                  <h2 id="roadmapTitle">30天学习闭环</h2>
+                  <p class="section-kicker" id="roadmapKicker">30-DAY WRITING</p>
+                  <h2 id="roadmapTitle">10个分析师工作情境</h2>
                 </div>
-                <button class="text-button" id="openFrameworkButton" type="button">查看新概念三框架</button>
+                <button class="text-button" id="openFrameworkButton" type="button" hidden>查看新概念三框架</button>
               </div>
-              <ol class="roadmap-list" id="roadmapList">
-                <li data-start="1" data-end="9"><span>01</span><div><strong>基础词汇</strong><small>第1—9天 · 三篇A2文章</small></div></li>
-                <li data-start="10" data-end="15"><span>02</span><div><strong>指标表达</strong><small>第10—15天 · KPI与报表</small></div></li>
-                <li data-start="16" data-end="21"><span>03</span><div><strong>分析方法</strong><small>第16—21天 · 留存与实验</small></div></li>
-                <li data-start="22" data-end="30"><span>04</span><div><strong>工作沟通</strong><small>第22—30天 · 预测、故障与建议</small></div></li>
-              </ol>
+              <ol class="roadmap-list" id="roadmapList"></ol>
             </section>
           </div>
+        </section>
+
+        <section class="records-view" id="recordsView" hidden aria-labelledby="recordsTitle">
+          <div class="page-heading records-heading">
+            <div>
+              <p class="eyebrow">WRITING RECORDS</p>
+              <h1 id="recordsTitle">30天写作记录</h1>
+              <p>首次提交保留原样，修改版持续自动保存。评分是自我观察，不是机器评判</p>
+            </div>
+            <button class="primary-button records-current-button" id="openCurrentWritingButton" type="button">继续当前训练 <span aria-hidden="true">→</span></button>
+          </div>
+          <section class="benchmark-panel" id="benchmarkPanel" aria-labelledby="benchmarkTitle">
+            <p class="section-kicker">BASELINE VS FINAL</p>
+            <h2 id="benchmarkTitle">完成第1天和第30天后显示对比</h2>
+            <p>对比有效用时、目标字数和五项自评分，不把主观评分解释成客观考试成绩</p>
+          </section>
+          <div class="records-list" id="recordsList"></div>
         </section>
 
         <section class="library-view" id="libraryView" hidden aria-labelledby="libraryTitle">
@@ -151,7 +164,6 @@
               <button class="complete-button" id="completeButton" type="button">标记为已读</button>
             </div>
           </header>
-
           <div class="reader-toolbar" id="readerToolbar">
             <div class="section-tabs" id="sectionTabs" role="tablist" aria-label="文章内容"></div>
             <div class="reading-controls">
@@ -161,15 +173,105 @@
               <button id="fontUpButton" type="button" aria-label="增大正文字号">A＋</button>
             </div>
           </div>
-
-          <div class="reader-paper" id="readerContent" role="tabpanel" aria-live="polite">
-            <div class="loading-state">正在加载阅读材料…</div>
-          </div>
+          <div class="reader-paper" id="readerContent" role="tabpanel" aria-live="polite"><div class="loading-state">正在加载阅读材料…</div></div>
           <footer class="reader-footer">
             <button class="complete-button" id="completeButtonBottom" type="button">完成本篇阅读</button>
             <p>先复述文章主旨，再查看翻译和参考答案</p>
           </footer>
         </article>
+
+        <section class="writing-view" id="writingView" hidden aria-labelledby="writingTitle">
+          <header class="writing-header">
+            <button class="back-button" id="writingBackButton" type="button">← 返回今日训练</button>
+            <div class="writing-heading-row">
+              <div>
+                <p class="eyebrow" id="writingEyebrow">DAY 01 · MODEL</p>
+                <h1 id="writingTitle">写作情境</h1>
+                <div class="reader-meta" id="writingMeta"></div>
+              </div>
+              <div class="save-indicator" id="saveIndicator" role="status" aria-live="polite">草稿未修改</div>
+            </div>
+          </header>
+
+          <div class="writing-workbench">
+            <aside class="brief-column" aria-label="工作情境与写作要求">
+              <section class="brief-card brief-card-dark">
+                <p class="panel-label">WORKPLACE CONTEXT</p>
+                <div class="markdown-body" id="workplaceContext"></div>
+              </section>
+              <section class="brief-card">
+                <p class="panel-label">DATA BRIEF</p>
+                <div class="markdown-body" id="writingDataBrief"></div>
+              </section>
+              <section class="brief-card" id="modelExampleCard" hidden>
+                <p class="panel-label">MODEL EMAIL</p>
+                <div class="markdown-body" id="modelEmail"></div>
+              </section>
+              <details class="brief-card support-card" id="languageSupport">
+                <summary>查看语言工具</summary>
+                <div class="markdown-body" id="languageToolkit"></div>
+              </details>
+              <p class="confidentiality-note">只使用练习中的虚构信息，不要粘贴真实公司的数据、客户名称或内部材料</p>
+            </aside>
+
+            <section class="editor-column" aria-labelledby="writingTaskTitle">
+              <div class="task-brief">
+                <div>
+                  <p class="section-kicker" id="writingModeLabel">MODEL PRACTICE</p>
+                  <h2 id="writingTaskTitle">今日写作任务</h2>
+                </div>
+                <span class="target-pill" id="writingTarget">60–90 words</span>
+              </div>
+              <div class="markdown-body task-copy" id="writingTask"></div>
+              <label class="editor-label" for="writingDraft">Your draft</label>
+              <textarea id="writingDraft" maxlength="10000" spellcheck="true" placeholder="Write your answer in English…"></textarea>
+              <div class="editor-status" aria-live="polite">
+                <span><strong id="wordCount">0</strong> words</span>
+                <span>有效用时 <strong id="activeTimer">00:00</strong></span>
+              </div>
+              <div class="editor-actions">
+                <button class="secondary-button" id="copyDraftButton" type="button">复制草稿</button>
+                <button class="primary-button submit-writing-button" id="submitWritingButton" type="button">提交首次版本 <span aria-hidden="true">→</span></button>
+              </div>
+
+              <section class="submission-panel" id="submissionPanel" hidden aria-labelledby="submissionTitle">
+                <div class="panel-heading">
+                  <div><p class="section-kicker">FIRST SUBMISSION</p><h2 id="submissionTitle">首次提交快照</h2></div>
+                  <button class="text-button" id="copySubmissionButton" type="button">复制</button>
+                </div>
+                <pre id="firstSubmissionText"></pre>
+              </section>
+
+              <form class="rubric-panel" id="rubricForm" hidden aria-labelledby="rubricTitle">
+                <p class="section-kicker">SELF REVIEW</p>
+                <h2 id="rubricTitle">给这次写作做五项自评</h2>
+                <p>0分表示没有做到，1分表示部分做到，2分表示表达清楚</p>
+                <div id="rubricFields"></div>
+                <label class="reflection-label" for="reflectionNote">一句复盘，可不填</label>
+                <textarea id="reflectionNote" maxlength="500" rows="3" placeholder="例如：结论写得太晚，下次第一句先给结果"></textarea>
+                <div class="rubric-footer">
+                  <strong id="rubricTotal">当前 0 / 10</strong>
+                  <button class="primary-button" id="saveAssessmentButton" type="submit">保存自评并查看参考版本</button>
+                </div>
+              </form>
+
+              <section class="reference-panel" id="referencePanel" hidden aria-labelledby="referenceTitle">
+                <p class="section-kicker">REFERENCE & REVISION</p>
+                <h2 id="referenceTitle">参考版本与语言解析</h2>
+                <div class="markdown-body" id="referenceAnswer"></div>
+                <div class="structure-breakdown" id="structureBreakdown"></div>
+                <div class="oral-prompt"><strong>1分钟口头复述</strong><div class="markdown-body" id="oralRetell"></div></div>
+                <p class="revision-note">上方编辑器已进入修改模式。首次提交不会改变，修改版会继续自动保存</p>
+                <button class="primary-button" id="nextWritingButton" type="button">进入下一天 <span aria-hidden="true">→</span></button>
+              </section>
+
+              <div class="writing-error" id="writingError" hidden>
+                <p>写作材料加载失败，本地草稿没有改变</p>
+                <button class="secondary-button" id="retryWritingButton" type="button">重新加载</button>
+              </div>
+            </section>
+          </div>
+        </section>
       </main>
     </div>
 

@@ -1,0 +1,112 @@
+[
+  {
+    "id": "requirement-clarification",
+    "order": 1,
+    "title": "Clarifying a Vague Data Request",
+    "titleZh": "澄清模糊的数据需求",
+    "level": "B1+",
+    "focus": "范围、决策与截止时间",
+    "summary": "把一句模糊的数据请求改写成可以执行的分析需求",
+    "path": "./content/writing/01-requirement-clarification.md",
+    "targets": { "model": [60, 90], "guided": [90, 130], "independent": [120, 160] }
+  },
+  {
+    "id": "metric-definition",
+    "order": 2,
+    "title": "Defining an Active User Metric",
+    "titleZh": "定义活跃用户指标",
+    "level": "B1+",
+    "focus": "口径、分母与时间窗口",
+    "summary": "说明指标定义的选择，并提醒不同口径会怎样改变结果",
+    "path": "./content/writing/02-metric-definition.md",
+    "targets": { "model": [60, 90], "guided": [90, 130], "independent": [120, 160] }
+  },
+  {
+    "id": "trend-explanation",
+    "order": 3,
+    "title": "Explaining a Conversion Drop",
+    "titleZh": "解释转化率下降",
+    "level": "B1+",
+    "focus": "比较基准与可能原因",
+    "summary": "用数字说明趋势，同时区分已经确认的事实和仍需验证的解释",
+    "path": "./content/writing/03-trend-explanation.md",
+    "targets": { "model": [60, 90], "guided": [90, 130], "independent": [120, 160] }
+  },
+  {
+    "id": "anomaly-report",
+    "order": 4,
+    "title": "Reporting a Revenue Anomaly",
+    "titleZh": "汇报收入指标异常",
+    "level": "B1+ → B2",
+    "focus": "现象、影响与排查动作",
+    "summary": "在原因还没确认时，准确汇报异常范围、业务影响和下一次更新时间",
+    "path": "./content/writing/04-anomaly-report.md",
+    "targets": { "model": [60, 90], "guided": [90, 130], "independent": [120, 160] }
+  },
+  {
+    "id": "data-quality",
+    "order": 5,
+    "title": "Communicating a Data Quality Incident",
+    "titleZh": "沟通数据质量问题",
+    "level": "B2",
+    "focus": "受影响范围与临时方案",
+    "summary": "说明哪些报表不可靠、哪些数据仍可使用，以及团队正在采取什么措施",
+    "path": "./content/writing/05-data-quality.md",
+    "targets": { "model": [60, 90], "guided": [90, 130], "independent": [120, 160] }
+  },
+  {
+    "id": "weekly-dashboard",
+    "order": 6,
+    "title": "Writing a Weekly Dashboard Update",
+    "titleZh": "编写仪表盘周报",
+    "level": "B2",
+    "focus": "结论优先与重点变化",
+    "summary": "从一组指标中选出真正需要管理者注意的变化，并写出下一步",
+    "path": "./content/writing/06-weekly-dashboard.md",
+    "targets": { "model": [60, 90], "guided": [90, 130], "independent": [120, 160] }
+  },
+  {
+    "id": "ab-test-result",
+    "order": 7,
+    "title": "Sharing an A/B Test Result",
+    "titleZh": "汇报A/B测试结果",
+    "level": "B2",
+    "focus": "提升幅度、显著性与护栏",
+    "summary": "避免只报一个增长数字，补齐样本、置信度、护栏指标和上线建议",
+    "path": "./content/writing/07-ab-test-result.md",
+    "targets": { "model": [60, 90], "guided": [90, 130], "independent": [120, 160] }
+  },
+  {
+    "id": "forecast-risk",
+    "order": 8,
+    "title": "Explaining Forecast Risk",
+    "titleZh": "说明预测风险",
+    "level": "B2",
+    "focus": "区间、假设与情景",
+    "summary": "把单点预测改写为有假设、有范围、能支持决策的风险说明",
+    "path": "./content/writing/08-forecast-risk.md",
+    "targets": { "model": [60, 90], "guided": [90, 130], "independent": [120, 160] }
+  },
+  {
+    "id": "insight-recommendation",
+    "order": 9,
+    "title": "Turning an Insight into a Recommendation",
+    "titleZh": "从洞察提出建议",
+    "level": "B2",
+    "focus": "证据、行动、衡量与风险",
+    "summary": "把一个数据发现写成有目标对象、验证方式和风险边界的行动建议",
+    "path": "./content/writing/09-insight-recommendation.md",
+    "targets": { "model": [60, 90], "guided": [90, 130], "independent": [120, 160] }
+  },
+  {
+    "id": "executive-summary",
+    "order": 10,
+    "title": "Writing an Executive Summary",
+    "titleZh": "编写管理层摘要",
+    "level": "B2",
+    "focus": "优先级、影响与决策",
+    "summary": "把多项分析压缩成管理者能快速阅读、判断和行动的英文摘要",
+    "path": "./content/writing/10-executive-summary.md",
+    "targets": { "model": [60, 90], "guided": [90, 130], "independent": [120, 160] }
+  }
+]
