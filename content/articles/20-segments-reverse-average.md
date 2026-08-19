@@ -48,4 +48,10 @@ Overall support resolution improves, but every priority tier becomes slower. Wri
 
 ### Answer Key
 
-1. More cases were in the faster simple segment. 2. Within-segment and mix effects. 3. It affected time and had a stable definition. The application should quantify tier shares and within-tier changes and avoid crediting the process prematurely.
+1. More cases moved into the faster simple segment.
+2. The analyst separated within-segment and mix effects.
+3. Complexity affected processing time and had a stable definition.
+
+### Application Model Response
+
+The overall resolution time may have improved because the case mix shifted toward faster priority tiers, even though every tier became slower. I will compare tier shares across periods, calculate within-tier changes, and quantify the mix contribution. Until that decomposition is complete, we should not claim that the support process itself improved.

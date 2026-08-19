@@ -48,4 +48,10 @@ A campaign report loses 28% of recipients after an inner join to purchase data. 
 
 ### Answer Key
 
-1. It removed couriers with no delivery from the denominator. 2. Several states, including no activity and delayed data. 3. Row count, unmatched rate, and null patterns. A strong note keeps the campaign population, separates zero purchase from pending data, and validates latency.
+1. It removed couriers with no delivery from the denominator.
+2. A null may mean no activity, not applicable, delayed data, or an unexpected gap.
+3. Row count, unmatched rate, and null patterns.
+
+### Application Model Response
+
+We should keep all campaign recipients as the base population and use a left join to purchase data. A null purchase will count as zero only after we confirm the transaction feed is complete. I will report the unmatched rate separately, check pipeline latency, and compare recipient counts before and after the join.

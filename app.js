@@ -168,9 +168,9 @@
       "statWordsLabel", "statStreakLabel", "progressTrack", "progressBar", "progressCopy", "todayLabel", "dayNumber", "dayTotal",
       "dayCounter", "dashboardTitle", "heroCopy", "roadmapKicker", "roadmapTitle", "readerEyebrow", "readerTitle", "readerMeta",
       "readerToolbar", "sectionTabs", "readerContent", "completeButton", "completeButtonBottom", "backButton", "bilingualButton",
-      "fontDownButton", "fontUpButton", "toast", "mainContent", "sidebarScrim", "resumeReadingButton", "exportProgressButton",
+      "fontDownButton", "fontUpButton", "readerFooter", "toast", "mainContent", "sidebarScrim", "resumeReadingButton", "exportProgressButton",
       "importProgressButton", "importProgressInput", "resetAdvancedButton", "roadmapList", "todayModeLabel", "todayPlanTitle", "recordsList",
-      "benchmarkPanel", "benchmarkTitle", "openCurrentWritingButton", "writingBackButton", "writingEyebrow", "writingTitle",
+      "benchmarkPanel", "benchmarkTitle", "recordsEyebrow", "recordsTitle", "recordsCopy", "openCurrentWritingButton", "writingBackButton", "writingEyebrow", "writingTitle",
       "writingMeta", "saveIndicator", "workplaceContext", "writingDataBrief", "modelExampleCard", "modelEmail", "languageSupport",
       "languageToolkit", "writingModeLabel", "writingTaskTitle", "writingTarget", "writingTask", "writingDraft", "wordCount",
       "activeTimer", "copyDraftButton", "submitWritingButton", "submissionPanel", "firstSubmissionText", "copySubmissionButton",
@@ -212,7 +212,7 @@
     elements.dailyTaskList.addEventListener("change", onReadingTaskChange);
     elements.startTrainingButton.addEventListener("click", startCurrentTraining);
     elements.resumeReadingButton.addEventListener("click", () => openItem(state.data.lastReader?.itemId, { resume: true }));
-    elements.openCurrentWritingButton.addEventListener("click", openCurrentWriting);
+    elements.openCurrentWritingButton.addEventListener("click", openCurrentRecord);
     elements.exportProgressButton.addEventListener("click", exportProgress);
     elements.importProgressButton.addEventListener("click", () => elements.importProgressInput.click());
     elements.importProgressInput.addEventListener("change", importProgress);
@@ -254,6 +254,10 @@
       if (button) openWritingDay(Number(button.dataset.writingDay));
       const copyButton = event.target.closest("button[data-copy-day]");
       if (copyButton) copyRecord(Number(copyButton.dataset.copyDay), copyButton.dataset.copyKind);
+      const advancedButton = event.target.closest("button[data-advanced-day]");
+      if (advancedButton) openAdvancedReadingDay(Number(advancedButton.dataset.advancedDay), { review: true });
+      const advancedCopyButton = event.target.closest("button[data-copy-advanced-day]");
+      if (advancedCopyButton) copyAdvancedRecord(Number(advancedCopyButton.dataset.copyAdvancedDay));
     });
     window.addEventListener("resize", syncSidebarAccessibility);
     window.addEventListener("scroll", saveReaderPosition, { passive: true });
@@ -606,6 +610,10 @@
   function syncSidebarAccessibility() {
     if (!elements.sidebar) return;
     const mobile = window.matchMedia("(max-width: 980px)").matches;
+    if (!mobile) {
+      elements.sidebar.classList.remove("is-open");
+      elements.menuButton.setAttribute("aria-expanded", "false");
+    }
     const open = mobile && elements.sidebar.classList.contains("is-open");
     elements.sidebar.inert = mobile && !open;
     if (mobile && !open) elements.sidebar.setAttribute("aria-hidden", "true");
@@ -1071,7 +1079,7 @@
     return calculateDateSetStreak(dates);
   }
 
-  async function openAdvancedReadingDay(day) {
+  async function openAdvancedReadingDay(day, options = {}) {
     const current = getCurrentAdvancedReadingDay();
     const attemptExists = Boolean(getAdvancedAttempt(day));
     if (!Number.isInteger(day) || day < 1 || day > ADVANCED_READING_PLAN_DAYS || (!attemptExists && day > current)) {
@@ -1091,7 +1099,7 @@
       state.data = previous;
       return;
     }
-    await openItem(plan.article.id, { resume: true, advancedDay: day });
+    await openItem(plan.article.id, { resume: !options.review, advancedDay: day, section: options.review ? "Reading Questions" : null });
   }
 
   function cloneProgressData(value) {
@@ -1109,6 +1117,18 @@
       return;
     }
     openWritingDay(getCurrentWritingDay());
+  }
+
+  function openCurrentRecord() {
+    if (state.data.activeProgram === "readingAdvanced") {
+      if (!state.data.advancedReadingProgram.startedAt) {
+        showView("dashboard");
+        return;
+      }
+      openAdvancedReadingDay(isAdvancedReadingProgramComplete() ? ADVANCED_READING_PLAN_DAYS : getCurrentAdvancedReadingDay());
+      return;
+    }
+    openCurrentWriting();
   }
 
   function getWritingPlan(day) {
@@ -1484,6 +1504,20 @@
   }
 
   function renderRecords() {
+    const advanced = state.data.activeProgram === "readingAdvanced";
+    elements.recordsEyebrow.textContent = advanced ? "ADVANCED READING RECORDS" : "WRITING RECORDS";
+    elements.recordsTitle.textContent = advanced ? "60天进阶阅读记录" : "30天写作记录";
+    elements.recordsCopy.textContent = advanced ? "按文章回看应用回答和参考版本。回答只保存在当前浏览器" : "首次提交保留原样，修改版持续自动保存。评分是自我观察，不是机器评判";
+    elements.openCurrentWritingButton.innerHTML = advanced ? '继续当前阅读 <span aria-hidden="true">→</span>' : '继续当前训练 <span aria-hidden="true">→</span>';
+    elements.benchmarkPanel.hidden = advanced;
+    if (advanced) {
+      renderAdvancedRecords();
+      return;
+    }
+    renderWritingRecords();
+  }
+
+  function renderWritingRecords() {
     if (!elements.recordsList) return;
     if (state.writingLoadError) {
       elements.recordsList.innerHTML = '<div class="error-state"><p>写作目录加载失败，请刷新页面后重试</p></div>';
@@ -1530,6 +1564,55 @@
     });
   }
 
+  function renderAdvancedRecords() {
+    if (!elements.recordsList) return;
+    if (state.readingLoadError) {
+      elements.recordsList.innerHTML = '<div class="error-state"><p>进阶阅读目录加载失败，请刷新页面后重试</p></div>';
+      return;
+    }
+    if (!isAdvancedContentReady()) {
+      elements.recordsList.innerHTML = '<div class="loading-state">正在加载进阶阅读记录…</div>';
+      return;
+    }
+    const attempts = state.data.advancedReadingProgram.attempts;
+    const hasAny = Object.values(attempts).some((attempt) => attempt.mode === "apply" && attempt.applicationText.trim());
+    if (!hasAny) {
+      elements.recordsList.innerHTML = '<div class="empty-records"><strong>还没有应用回答</strong><span>完成第2天应用训练后，回答会显示在这里</span></div>';
+      return;
+    }
+    const articles = getAdvancedArticles();
+    elements.recordsList.innerHTML = ADVANCED_MODULES.map((module, moduleIndex) => {
+      const moduleArticles = articles.slice(moduleIndex * 5, moduleIndex * 5 + 5);
+      const records = moduleArticles.map((article, articleIndex) => {
+        const globalIndex = moduleIndex * 5 + articleIndex;
+        const day = (globalIndex + 1) * 2;
+        const attempt = attempts[String(day)];
+        const response = attempt?.applicationText || "";
+        if (!response.trim()) return "";
+        const status = attempt?.completedAt ? "已完成" : "回答已保存";
+        const completedDate = attempt?.completedAt ? new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "short", day: "numeric" }).format(new Date(attempt.completedAt)) : "—";
+        return `<article class="record-card advanced-record-card ${attempt?.completedAt ? "is-complete" : ""}">
+          <div class="record-card-head">
+            <div><span>DAY ${String(day).padStart(2, "0")} · APPLICATION</span><strong>${escapeHtml(article.title)}</strong></div>
+            <button class="secondary-button" type="button" data-advanced-day="${day}">打开记录</button>
+          </div>
+          <div class="record-metrics">
+            <span>状态 <strong>${status}</strong></span>
+            <span>回答字数 <strong>${countEnglishWords(response)}</strong></span>
+            <span>完成日期 <strong>${completedDate}</strong></span>
+          </div>
+          <details class="record-text"><summary>查看应用回答</summary><div><p>我的回答</p><pre data-advanced-record="${day}"></pre><button class="text-button" type="button" data-copy-advanced-day="${day}">复制回答</button></div></details>
+        </article>`;
+      }).filter(Boolean);
+      if (!records.length) return "";
+      return `<section class="scenario-record advanced-module-record"><div class="scenario-record-title"><span>${String(moduleIndex + 1).padStart(2, "0")}</span><div><h2>${escapeHtml(module.title)}</h2><p>${records.length} 条应用回答</p></div></div><div class="scenario-days advanced-record-days">${records.join("")}</div></section>`;
+    }).filter(Boolean).join("");
+    Object.entries(attempts).forEach(([day, attempt]) => {
+      const output = elements.recordsList.querySelector(`[data-advanced-record="${day}"]`);
+      if (output) output.textContent = attempt.applicationText;
+    });
+  }
+
   function renderBenchmark() {
     const baseline = getAttempt(1);
     const final = getAttempt(WRITING_PLAN_DAYS);
@@ -1561,6 +1644,11 @@
     if (!attempt) return;
     const text = kind === "revision" ? attempt.draftText : attempt.firstSubmission?.text;
     if (text) copyText(text, kind === "revision" ? "修改版已复制" : "首次提交已复制");
+  }
+
+  function copyAdvancedRecord(day) {
+    const attempt = getAdvancedAttempt(day);
+    if (attempt?.applicationText) copyText(attempt.applicationText, "应用回答已复制");
   }
 
   async function copyText(value, successMessage) {
@@ -1728,7 +1816,7 @@
     elements.advancedPracticePanel.hidden = true;
     state.data.lastOpened = id;
     const savedReader = options.resume && state.data.lastReader?.itemId === id ? state.data.lastReader : null;
-    state.activeSection = item.type === "article" && savedReader?.section ? savedReader.section : "English Original";
+    state.activeSection = item.type === "article" && ARTICLE_SECTIONS.includes(options.section) ? options.section : item.type === "article" && savedReader?.section ? savedReader.section : "English Original";
     state.bilingual = item.type === "article" && Boolean(savedReader?.bilingual);
     elements.bilingualButton.setAttribute("aria-pressed", String(state.bilingual));
     updateLastReader({ itemId: id, section: state.activeSection, bilingual: state.bilingual, scrollY: savedReader?.scrollY || 0 });
@@ -1822,13 +1910,32 @@
     });
     elements.readerContent.setAttribute("aria-labelledby", `tab-${state.activeSection.replace(/\s+/g, "-").toLowerCase()}`);
     const source = state.currentSections[state.activeSection] || "## 内容缺失\n\n这部分内容尚未准备";
-    if (state.activeSection === "Reading Questions" && source.includes("### Answer Key")) {
+    if (state.activeSection === "Reading Questions" && source.includes("### Answer Key") && state.currentItem?.track === "advanced") {
+      renderAdvancedAnswerSection(source);
+    } else if (state.activeSection === "Reading Questions" && source.includes("### Answer Key")) {
       const [questions, answers] = source.split("### Answer Key");
       elements.readerContent.innerHTML = `<div class="markdown-body">${renderMarkdown(questions)}<details><summary>查看参考答案</summary>${renderMarkdown(answers)}</details></div>`;
     } else {
       elements.readerContent.innerHTML = `<div class="markdown-body">${renderMarkdown(source)}</div>`;
     }
     if (state.activeSection === "Vocabulary") attachVocabularyButtons();
+  }
+
+  function renderAdvancedAnswerSection(source) {
+    const [questions, answerSource = ""] = source.split("### Answer Key");
+    const [comprehensionAnswers, modelResponse = ""] = answerSource.split("### Application Model Response");
+    const articleIndex = getAdvancedArticles().findIndex((article) => article.id === state.currentItem?.id);
+    const deepDay = articleIndex >= 0 ? articleIndex * 2 + 1 : null;
+    const applyDay = deepDay ? deepDay + 1 : null;
+    const deepComplete = Boolean(deepDay && getAdvancedAttempt(deepDay)?.completedAt);
+    const applyComplete = Boolean(applyDay && getAdvancedAttempt(applyDay)?.completedAt);
+    const comprehension = deepComplete
+      ? `<details><summary>查看理解题答案</summary>${renderMarkdown(comprehensionAnswers)}</details>`
+      : '<div class="answer-lock"><strong>理解题答案尚未解锁</strong><span>完成本篇精读日后，在应用日回来核对答案</span></div>';
+    const application = applyComplete
+      ? `<details class="application-reference"><summary>查看应用参考版本</summary>${renderMarkdown(modelResponse)}</details>`
+      : '<div class="answer-lock"><strong>应用参考版本尚未解锁</strong><span>先完成40–80词应用回答，再到训练记录中查看参考版本</span></div>';
+    elements.readerContent.innerHTML = `<div class="markdown-body">${renderMarkdown(questions)}${comprehension}${application}</div>`;
   }
 
   function renderAdvancedPracticePanel() {
@@ -1863,7 +1970,7 @@
     }
     elements.advancedSaveIndicator.textContent = complete ? "已完成" : attempt.updatedAt ? "已保存到当前浏览器" : "任务未修改";
     elements.completeAdvancedDayButton.disabled = complete || !isAdvancedAttemptReady(plan, attempt);
-    elements.completeAdvancedDayButton.innerHTML = complete ? '本日已完成 <span aria-hidden="true">✓</span>' : '完成今日训练 <span aria-hidden="true">→</span>';
+    elements.completeAdvancedDayButton.innerHTML = complete ? '本日训练已完成 <span aria-hidden="true">✓</span>' : `完成第${plan.day}天训练 <span aria-hidden="true">→</span>`;
   }
 
   function extractAdvancedApplicationPrompt(source) {
@@ -2098,7 +2205,10 @@
 
   function updateCompleteButtons() {
     const done = state.currentItem && state.data.completed.includes(state.currentItem.id);
+    const inAdvancedTraining = Number.isInteger(state.currentAdvancedDay);
+    elements.readerFooter.hidden = inAdvancedTraining;
     [elements.completeButton, elements.completeButtonBottom].forEach((button) => {
+      button.hidden = inAdvancedTraining;
       button.classList.toggle("is-complete", done);
       button.textContent = done ? "已完成 ✓" : button === elements.completeButton ? "标记为已读" : "完成本篇阅读";
       button.setAttribute("aria-pressed", String(Boolean(done)));

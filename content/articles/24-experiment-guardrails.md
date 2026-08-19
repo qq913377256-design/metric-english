@@ -39,7 +39,9 @@ MapleDish加购提示使客单价升7%，但配送慢6分钟、延迟投诉增18
 
 ## Reading Questions
 
-1. What cost accompanied higher order value? 2. Where was harm concentrated? 3. Which factors guide a response?
+1. What cost accompanied higher order value?
+2. Where was harm concentrated?
+3. Which factors guide a response?
 
 ### Workplace Application
 
@@ -47,4 +49,10 @@ A feature raises engagement 9% but failed payments rise from 1.1% to 1.8%, above
 
 ### Answer Key
 
-1. Slower delivery and more complaints. 2. Small restaurants at dinner. 3. Uncertainty, severity, reversibility, and affected groups. Recommend pausing or rolling back and investigating the segment.
+1. Higher order value came with slower delivery and more complaints.
+2. Harm was concentrated among small restaurants at dinner.
+3. Uncertainty, severity, reversibility, and affected groups guide the response.
+
+### Application Model Response
+
+Engagement improved by 9%, but failed payments reached 1.8%, above the 1.4% guardrail. I recommend pausing the rollout and identifying the affected payment methods, devices, and customer segments. Because payment failure is a severe customer outcome, expansion should resume only after a fix is validated and the guardrail returns within its agreed range.

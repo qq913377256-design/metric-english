@@ -48,4 +48,10 @@ Sales and Product disagree on “activated account.” Write a 40–80 word prop
 
 ### Answer Key
 
-1. Teams used different rules under one label. 2. Boundary examples, SQL, and validation data. 3. Review, impact analysis, and parallel versions. The application should connect the definition to a decision rather than choose a rule without context.
+1. Teams used different rules under one label.
+2. Boundary examples, SQL, and validation data made the contract executable.
+3. Review, impact analysis, and parallel versions supported a safe change.
+
+### Application Model Response
+
+Before choosing an “activated account” rule, we should agree on the decision it supports. I propose documenting the qualifying event, time window, exclusions, source, and owner with Sales and Product. We will test boundary cases, estimate historical impact, run old and new definitions in parallel, and publish the approved definition with a change date.

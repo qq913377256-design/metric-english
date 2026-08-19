@@ -48,4 +48,10 @@ A query is 70% faster but revenue is 2.3% lower. Write a 40–80 word update exp
 
 ### Answer Key
 
-1. It removed refunded orders and changed the definition. 2. Checks that business meaning remains the same. 3. Speed, meaning, and maintainability. The update should pause release, compare filters/grain/joins and control totals, and avoid accepting unexplained variance.
+1. It removed refunded orders and changed the definition.
+2. Semantic tests check that the business meaning remains unchanged.
+3. Speed, meaning, and maintainability.
+
+### Application Model Response
+
+I am pausing release because a 2.3% revenue change means the optimized query may no longer represent the approved metric. I will compare grain, status filters, refund logic, date boundaries, and join cardinality with the current version. We will release only after revenue, order counts, null rates, and known-account samples reconcile.

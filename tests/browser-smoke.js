@@ -264,6 +264,9 @@ function assert(condition, message) {
   await advancedPage.locator("#startTrainingButton").click();
   await advancedPage.locator("#advancedPracticePanel:not([hidden])").waitFor();
   assert((await advancedPage.locator("#advancedPracticeKicker").innerText()).includes("DAY 01"), "Advanced deep-reading day did not open");
+  assert(await advancedPage.locator("#completeButton").isHidden(), "Library read marker should be hidden during advanced training");
+  await advancedPage.locator('button[data-section="Reading Questions"]').click();
+  assert((await advancedPage.locator("#readerContent").innerText()).includes("理解题答案尚未解锁"), "Deep-reading answers should stay locked before completion");
   assert(await advancedPage.locator("#advancedTaskList input").count() === 4, "Deep-reading day should contain four tasks");
   for (const checkbox of await advancedPage.locator("#advancedTaskList input").all()) await checkbox.check();
   assert(!(await advancedPage.locator("#completeAdvancedDayButton").isDisabled()), "Four deep-reading tasks should unlock completion");
@@ -273,6 +276,10 @@ function assert(condition, message) {
 
   await advancedPage.locator("#startTrainingButton").click();
   await advancedPage.locator("#advancedResponse:not([hidden])").waitFor();
+  await advancedPage.locator('button[data-section="Reading Questions"]').click();
+  const dayTwoQuestions = await advancedPage.locator("#readerContent").innerText();
+  assert(dayTwoQuestions.includes("查看理解题答案"), "Comprehension answers should unlock after the deep-reading day");
+  assert(dayTwoQuestions.includes("应用参考版本尚未解锁"), "Application model should stay locked before the response is complete");
   const maliciousResponse = '<img src=x onerror=window.__advancedXss=1> The conversion rate fell after the mobile checkout update, while desktop performance stayed stable. I recommend reviewing payment errors by browser, comparing affected customer segments, and sharing a validated root cause before the team changes the campaign budget or rollout plan.';
   await advancedPage.locator("#advancedResponse").fill(maliciousResponse);
   await advancedPage.waitForTimeout(650);
@@ -319,6 +326,27 @@ function assert(condition, message) {
   await advancedPage.locator("#completeAdvancedDayButton").click();
   await advancedPage.locator("#dashboardView:not([hidden])").waitFor();
   assert((await advancedPage.locator("#dayNumber").innerText()) === "003", "Completing application day did not unlock the next article");
+  await advancedPage.locator('.nav-button[data-view="records"]').click();
+  assert((await advancedPage.locator("#recordsTitle").innerText()) === "60天进阶阅读记录", "Advanced program should show advanced records");
+  assert(await advancedPage.locator("#recordsList .advanced-module-record").count() === 1, "Advanced records should only show modules with saved responses");
+  assert(await advancedPage.locator("#recordsList .advanced-record-card").count() === 1, "Advanced records should not list locked or unanswered days");
+  assert((await advancedPage.locator('[data-advanced-record="2"]').textContent()) === maliciousResponse, "Saved application response is missing from records");
+  await advancedPage.setViewportSize({ width: 390, height: 844 });
+  await advancedPage.locator("#menuButton").click();
+  assert(await advancedPage.locator("#sidebar").getAttribute("class").then((value) => value.includes("is-open")), "Mobile navigation should open");
+  await advancedPage.setViewportSize({ width: 1440, height: 960 });
+  await advancedPage.setViewportSize({ width: 390, height: 844 });
+  await advancedPage.waitForTimeout(300);
+  assert(!(await advancedPage.locator("#sidebar").getAttribute("class").then((value) => value.includes("is-open"))), "Navigation should reset closed after crossing the desktop breakpoint");
+  const advancedRecordsOverflow = await advancedPage.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert(advancedRecordsOverflow <= 1, "Advanced records have horizontal overflow on mobile");
+  if (screenshotDir) await advancedPage.screenshot({ path: screenshotDir + "/v13-advanced-records-mobile.png", fullPage: true });
+  await advancedPage.setViewportSize({ width: 1440, height: 960 });
+  await advancedPage.locator('button[data-advanced-day="2"]').click();
+  await advancedPage.locator("#readerView:not([hidden])").waitFor();
+  assert(await advancedPage.locator('.application-reference summary').count() === 1, "Completed application should unlock its model response");
+  await advancedPage.locator("#backButton").click();
+  await advancedPage.locator('.nav-button[data-view="dashboard"]').click();
   advancedPage.once("dialog", (dialog) => dialog.accept());
   await advancedPage.locator("#resetAdvancedButton").click();
   const resetData = await advancedPage.evaluate(() => JSON.parse(localStorage.getItem("metricEnglish.v1")));

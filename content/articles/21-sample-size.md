@@ -37,7 +37,9 @@ NovaPlay原计划实验一周，但基线20%、最小有价值提升1个百分�
 
 ## Reading Questions
 
-1. Why was one week insufficient? 2. What should determine the MDE? 3. What was monitored during the test?
+1. Why was one week insufficient?
+2. What should determine the MDE?
+3. What was monitored during the test?
 
 ### Workplace Application
 
@@ -45,4 +47,10 @@ Your team wants a five-day test with 4,000 users per group and a one-point lift 
 
 ### Answer Key
 
-1. It lacked users and a full weekly cycle. 2. Business value. 3. Enrollment, ratio, quality, and guardrails. The response should request power/significance assumptions, traffic, duration, and a stopping rule.
+1. It lacked enough users and did not cover a full weekly cycle.
+2. The minimum detectable effect should come from business value.
+3. The team monitored enrollment, sample ratio, event quality, and guardrails.
+
+### Application Model Response
+
+Before launching a five-day test, we need the baseline rate, minimum business-worthy lift, significance level, statistical power, daily eligible traffic, and expected sample ratio. With only 4,000 users per group, the design may not detect a one-point lift reliably. I recommend calculating the required sample and agreeing on a minimum duration and stopping rule first.

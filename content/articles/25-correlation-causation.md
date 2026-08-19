@@ -37,7 +37,9 @@ PulsePath发现加入社群的用户运动频率高40%，但高动机用户可�
 
 ## Reading Questions
 
-1. What was the main confounder? 2. Why was adjustment insufficient? 3. How did random assignment help?
+1. What was the main confounder?
+2. Why was adjustment insufficient?
+3. How did random assignment help?
 
 ### Workplace Application
 
@@ -45,4 +47,10 @@ Premium users retain twice as long as free users. Write a 40–80 word note that
 
 ### Answer Key
 
-1. Motivation. 2. Unmeasured factors could remain. 3. It reduced systematic baseline differences. Use “associated,” name selection effects, and propose an experiment or credible causal design.
+1. Motivation was the main confounder.
+2. Adjustment could not remove unmeasured differences.
+3. Random assignment reduced systematic baseline differences.
+
+### Application Model Response
+
+Premium membership is associated with longer retention, but this comparison does not show that premium causes the difference. Users who choose premium may already have higher intent, income, or prior engagement. Before offering incentives, I recommend a randomized trial or a credible quasi-experiment that measures retention, cost, and customer guardrails for otherwise comparable users.

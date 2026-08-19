@@ -37,7 +37,9 @@ BeaconDaily每天查看p值，在第一次显著时停止，复现实验却没�
 
 ## Reading Questions
 
-1. Why did false-positive risk rise? 2. What could teams monitor early? 3. When should a sequential method be used?
+1. Why did false-positive risk rise?
+2. What could teams monitor early?
+3. When should a sequential method be used?
 
 ### Workplace Application
 
@@ -45,4 +47,10 @@ An experiment becomes significant on day four, but the plan requires fourteen da
 
 ### Answer Key
 
-1. Repeated opportunities favored lucky noise. 2. Quality, allocation, outages, and severe harm. 3. When repeated valid decisions are required. Recommend following the plan unless a predefined safety rule applies.
+1. Repeated checks created more opportunities for random noise to cross the threshold.
+2. Teams could monitor allocation, missing events, outages, and severe guardrail harm.
+3. A sequential method is appropriate when valid repeated decisions are required.
+
+### Application Model Response
+
+The day-four result is encouraging, but stopping now would break our fourteen-day fixed-sample rule and increase the false-positive risk. I recommend continuing until the planned sample and full duration are reached. We should stop early only for a predefined safety or data-quality condition, not because the current performance result is favorable.

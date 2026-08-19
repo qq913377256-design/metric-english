@@ -46,4 +46,10 @@ Your order total rises from $2.40 million to $2.88 million after a join to item 
 
 ### Answer Key
 
-1. Order-level revenue was repeated at item grain. 2. One row per customer segment per month. 3. Order count, revenue, and unmatched customer IDs. A strong application answer states the suspected duplication, checks join cardinality and totals, and avoids claiming a confirmed cause before validation.
+1. Order-level revenue was repeated at item grain.
+2. One row per customer segment per month.
+3. Order count, revenue, and unmatched customer IDs.
+
+### Application Model Response
+
+The $480,000 increase may come from repeating order-level revenue after the join expands each order to item grain. I will confirm the grain and join cardinality, compare unique order counts and revenue before and after the join, and inspect multi-item orders. I will also report unmatched keys before confirming the root cause.

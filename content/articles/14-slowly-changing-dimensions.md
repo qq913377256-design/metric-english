@@ -46,4 +46,10 @@ A customer changes region in June, and old reports now show the new region. Writ
 
 ### Answer Key
 
-1. The latest segment overwrote history. 2. For corrections where history is unnecessary. 3. It stores dated versions. The application should recommend Type 2, date-aware joins, and a no-overlapping-period test.
+1. The latest segment overwrote history.
+2. Type 1 is appropriate for corrections where history is unnecessary.
+3. Type 2 stores dated versions of a dimension record.
+
+### Application Model Response
+
+The report should answer which region the customer belonged to when each transaction occurred, so I recommend a Type 2 region dimension. Transactions should join to the version valid on the transaction date. I will test that effective periods never overlap, reconcile total revenue, and label the report as using historical region.

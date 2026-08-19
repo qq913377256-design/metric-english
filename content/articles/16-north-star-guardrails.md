@@ -48,4 +48,10 @@ A new checkout flow raises conversion by 6% but increases refund requests from 3
 
 ### Answer Key
 
-1. Customer-risk metrics worsened. 2. Baseline, range, owner, and response. 3. It reviews North Star, guardrails, and segments together. The application should avoid declaring a win and recommend a pause or limited rollout while investigating refunds.
+1. Cancellation and notification opt-out metrics worsened.
+2. Each guardrail needs a baseline, acceptable range, owner, and response rule.
+3. The review presents the North Star, guardrails, and segment differences together.
+
+### Application Model Response
+
+Checkout conversion improved by 6%, but the refund rate rose from 3.0% to 4.1%, so this is not yet a clear win. I recommend pausing the full rollout and reviewing refunds by device, payment method, and customer segment. We can continue with a limited group only if refunds return within the agreed guardrail.

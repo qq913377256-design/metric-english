@@ -39,7 +39,9 @@ WillowCRM收入比目标低8%，仓促归因于需求疲软，但合格机会反
 
 ## Reading Questions
 
-1. Why was the first explanation weak? 2. What were the four layers? 3. How did leaders act under uncertainty?
+1. Why was the first explanation weak?
+2. What were the four layers?
+3. How did leaders act under uncertainty?
 
 ### Workplace Application
 
@@ -47,4 +49,10 @@ Costs are 12% above plan; freight explains five points, while supplier pricing i
 
 ### Answer Key
 
-1. It asserted an untested cause. 2. Fact, confirmed drivers, hypotheses, and action. 3. They acted on renewals while testing demand. Separate confirmed freight from the pricing hypothesis.
+1. It presented an untested cause as a fact.
+2. The four layers were fact, confirmed drivers, hypotheses, and action.
+3. Leaders acted on confirmed renewals while keeping the demand hypothesis open.
+
+### Application Model Response
+
+Costs are 12% above plan. Higher freight expense is a confirmed contributor and explains five percentage points. Supplier pricing may explain part of the remaining gap, but that cause is not yet verified. Procurement will reconcile invoice prices by supplier by Thursday, while Operations reviews shipment mix and identifies immediate freight actions.

@@ -39,7 +39,9 @@ MorrowMart两百万次会话中，转化从4.00%升到4.05%，统计显著，但
 
 ## Reading Questions
 
-1. Why was the significant result not enough? 2. What did the report add? 3. How did the team change the rollout idea?
+1. Why was the significant result not enough?
+2. What did the report add?
+3. How did the team change the rollout idea?
 
 ### Workplace Application
 
@@ -47,4 +49,10 @@ A test is significant but adds only $8,000 annual margin against $30,000 annual 
 
 ### Answer Key
 
-1. Value was smaller than cost. 2. Magnitude, interval, economics, and guardrails. 3. It tested a targeted cheaper version. Recommend against full launch while proposing a viable follow-up.
+1. The expected value was smaller than the operating cost.
+2. The report added effect magnitude, confidence interval, economics, and guardrails.
+3. The team tested a cheaper version for a targeted segment.
+
+### Application Model Response
+
+The result provides evidence of a real difference, but the estimated $8,000 annual margin does not justify a $30,000 annual cost. I do not recommend a full launch. We should review the confidence interval and guardrails, then test a lower-cost version or a higher-value segment where the same effect could produce positive net impact.

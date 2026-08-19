@@ -421,6 +421,10 @@ h1, h2, h3 { color: var(--ink); font-family: Georgia, "Times New Roman", "Noto S
 .scenario-record-title h2 { font-size: 22px; }
 .scenario-record-title p { margin-top: 4px; color: var(--ink-soft); font-size: 12px; }
 .scenario-days { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.advanced-record-days { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.advanced-record-card .record-card-head { align-items: flex-start; }
+.advanced-record-card .record-card-head > div { min-width: 0; }
+.advanced-record-card .record-card-head strong { overflow-wrap: anywhere; font-family: Georgia, "Times New Roman", serif; line-height: 1.35; }
 .record-card { min-width: 0; padding: 16px; background: var(--paper); border-top: 3px solid var(--line); }
 .record-card.is-complete { border-top-color: var(--teal); }
 .record-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -447,6 +451,10 @@ h1, h2, h3 { color: var(--ink); font-family: Georgia, "Times New Roman", "Noto S
   border: 1px solid var(--line);
   font: 13px/1.65 Georgia, serif;
 }
+.answer-lock { display: grid; gap: 5px; margin-top: 18px; padding: 15px 17px; color: var(--ink-soft); background: var(--paper); border-left: 3px solid var(--line); }
+.answer-lock strong { color: var(--ink); font: 700 15px/1.3 Georgia, "Times New Roman", serif; }
+.answer-lock span { font-size: 12px; line-height: 1.6; }
+.application-reference { margin-top: 14px; border-left: 3px solid var(--teal); }
 .empty-records { display: grid; gap: 8px; place-items: center; min-height: 260px; color: var(--ink-soft); background: rgba(255,253,248,.7); border: 1px dashed var(--line); text-align: center; }
 .empty-records strong { color: var(--ink); font: 700 25px/1.2 Georgia, serif; }
 

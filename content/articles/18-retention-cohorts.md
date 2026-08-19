@@ -48,4 +48,10 @@ Overall retention rises four points while the annual-plan share also rises. Writ
 
 ### Answer Key
 
-1. It mixed cohort ages and plan composition. 2. Week one improved; week four stayed flat. 3. Discount-campaign users. The application should compare mature cohorts within plan/channel and quantify mix contribution before assigning cause.
+1. It mixed cohort ages and plan composition.
+2. Week-one retention improved, while week-four retention stayed flat.
+3. Discount-campaign users showed little improvement.
+
+### Application Model Response
+
+The four-point increase may partly reflect the larger share of annual-plan users rather than a product improvement. I will compare equally mature acquisition cohorts within each plan and channel, then decompose the change into within-cohort performance and plan-mix effects. We should assign a product cause only after quantifying both contributions.

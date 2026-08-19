@@ -33,7 +33,7 @@
       <aside class="sidebar" id="sidebar" aria-label="学习导航">
         <nav class="primary-nav" aria-label="主导航">
           <button class="nav-button is-active" type="button" data-view="dashboard"><span aria-hidden="true">01</span> 今日训练</button>
-          <button class="nav-button" type="button" data-view="records"><span aria-hidden="true">02</span> 写作记录</button>
+          <button class="nav-button" type="button" data-view="records"><span aria-hidden="true">02</span> 训练记录</button>
           <button class="nav-button" type="button" data-view="library"><span aria-hidden="true">03</span> 阅读资料库</button>
         </nav>
 
@@ -153,9 +153,9 @@
         <section class="records-view" id="recordsView" hidden aria-labelledby="recordsTitle">
           <div class="page-heading records-heading">
             <div>
-              <p class="eyebrow">WRITING RECORDS</p>
+              <p class="eyebrow" id="recordsEyebrow">WRITING RECORDS</p>
               <h1 id="recordsTitle">30天写作记录</h1>
-              <p>首次提交保留原样，修改版持续自动保存。评分是自我观察，不是机器评判</p>
+              <p id="recordsCopy">首次提交保留原样，修改版持续自动保存。评分是自我观察，不是机器评判</p>
             </div>
             <button class="primary-button records-current-button" id="openCurrentWritingButton" type="button">继续当前训练 <span aria-hidden="true">→</span></button>
           </div>
@@ -222,7 +222,7 @@
             </div>
             <button class="primary-button" id="completeAdvancedDayButton" type="button" disabled>完成今日训练 <span aria-hidden="true">→</span></button>
           </section>
-          <footer class="reader-footer">
+          <footer class="reader-footer" id="readerFooter">
             <button class="complete-button" id="completeButtonBottom" type="button">完成本篇阅读</button>
             <p>先复述文章主旨，再查看翻译和参考答案</p>
           </footer>

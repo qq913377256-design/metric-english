@@ -37,7 +37,9 @@ StonePeak主管要“周五前做客户表现看板”，分析师到周四才�
 
 ## Reading Questions
 
-1. What decision was hidden in the request? 2. What did the final output contain? 3. How were later changes handled?
+1. What decision was hidden in the request?
+2. What did the final output contain?
+3. How were later changes handled?
 
 ### Workplace Application
 
@@ -45,4 +47,10 @@ A manager asks for “all marketing data by tomorrow.” Write a 40–80 word cl
 
 ### Answer Key
 
-1. Which contracts to renew. 2. Expiring contracts and decision metrics. 3. As scoped changes with time trade-offs. The message should be helpful while refusing an undefined “all data” scope.
+1. The hidden decision was which contracts to renew.
+2. The output contained expiring contracts and decision-relevant metrics.
+3. Later requests were handled as scope changes with time trade-offs.
+
+### Application Model Response
+
+To provide the right marketing view by tomorrow, could you confirm the decision, audience, channels, markets, and comparison period? “All data” is too broad for a reliable one-day delivery. I propose starting with a one-page table of spend, qualified leads, and conversion by channel, then agreeing on any deeper cuts after your review.

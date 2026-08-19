@@ -37,7 +37,9 @@ FixFox原汇报由互不连接的图表组成。分析师围绕“两个城市�
 
 ## Reading Questions
 
-1. What was the central message? 2. What was the business impact? 3. Why was an alternative explanation included?
+1. What was the central message?
+2. What was the business impact?
+3. Why was an alternative explanation included?
 
 ### Workplace Application
 
@@ -45,4 +47,10 @@ You have charts on traffic, conversion, and support tickets but no clear narrati
 
 ### Answer Key
 
-1. Growth caused weekend capacity risk in two cities. 2. Lower fulfillment and revenue risk. 3. To show uncertainty honestly. The application should connect context, change, explanation, impact, and action.
+1. Growth created weekend capacity risk in two cities.
+2. The impact was lower fulfillment and quarterly revenue risk.
+3. The alternative explanation made uncertainty visible.
+
+### Application Model Response
+
+Traffic grew 18% after the campaign, but mobile conversion fell four points and support tickets rose 27%. Payment errors are concentrated among new Android users, although tracking still needs validation. I recommend pausing the Android rollout, fixing the payment step, and reviewing conversion and ticket guardrails after one week before restoring campaign spend.

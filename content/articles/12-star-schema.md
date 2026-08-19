@@ -46,4 +46,10 @@ Three dashboards calculate active subscriptions differently. Write a 40–80 wor
 
 ### Answer Key
 
-1. One invoice line per row. 2. It standardized fiscal periods. 3. Teams discussed actions instead of competing totals. The application should identify a common grain, reusable dimensions, one metric definition, and reconciliation with a trusted source.
+1. One invoice line per row.
+2. It standardized fiscal periods.
+3. Teams discussed actions instead of competing totals.
+
+### Application Model Response
+
+I recommend creating one subscription fact table at daily account grain, with reusable customer, plan, and date dimensions. We should define active subscriptions once in the fact layer and connect both dashboards to that measure. Before migration, I will reconcile totals against billing data and run the old and new models in parallel.

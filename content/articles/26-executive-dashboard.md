@@ -37,7 +37,9 @@ RidgeRoute原看板有47张图，却不能告诉管理层该处理什么。团�
 
 ## Reading Questions
 
-1. Why did 47 charts fail? 2. What appeared with each headline metric? 3. What five questions should the overview answer?
+1. Why did 47 charts fail?
+2. What appeared with each headline metric?
+3. What five questions should the overview answer?
 
 ### Workplace Application
 
@@ -45,4 +47,10 @@ An executive dashboard has 32 equal-weight KPIs. Write a 40–80 word redesign p
 
 ### Answer Key
 
-1. It lacked decision focus. 2. Target, comparison, note, and owner. 3. Change, importance, concentration, action, and decision. The proposal should reduce first-screen metrics and retain drill-down.
+1. The dashboard lacked decision focus.
+2. Each headline metric included a target, comparison, variance note, and owner.
+3. The overview should explain change, importance, concentration, action, and the required decision.
+
+### Application Model Response
+
+I recommend redesigning the first screen around two weekly decisions: where to add capacity and which service risks need escalation. We should show only the headline signals, targets, variance notes, impact, and owners, with details available through drill-down. Exceptions should enter an action log with a next step and update time.

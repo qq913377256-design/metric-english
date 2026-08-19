@@ -37,7 +37,9 @@ ClearMint周报列18个指标，却没有重点与责任人。新版按headline�
 
 ## Reading Questions
 
-1. Why did the old memo fail? 2. What five sections replaced it? 3. How did the next memo close the loop?
+1. Why did the old memo fail?
+2. What five sections replaced it?
+3. How did the next memo close the loop?
 
 ### Workplace Application
 
@@ -45,4 +47,10 @@ Activation falls 5%, 300 users are delayed, and Operations can fix a routing rul
 
 ### Answer Key
 
-1. It lacked priority and action. 2. Headline, evidence, drivers, risk, and action. 3. It reviewed prior actions. The application should quantify the issue, identify confidence, owner, and due date.
+1. The old memo lacked priority and action.
+2. Headline, evidence, drivers, risk, and action replaced the metric list.
+3. The next memo reviewed previous actions and their results.
+
+### Application Model Response
+
+Activation fell 5% this week after queue-routing delays affected about 300 users. The routing change is the largest confirmed driver; weekend staffing remains under review. Operations will restore the previous rule today, monitor the delayed queue, and report activation recovery by Friday. We will escalate if the backlog remains above 100 users tomorrow.

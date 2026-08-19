@@ -48,4 +48,10 @@ Desktop conversion is 54% and mobile conversion is 29%, but one mobile step is n
 
 ### Answer Key
 
-1. Mobile selection happened without the expected page event. 2. New mobile wallet users. 3. Error logs and session recordings. The application should pause causal claims, repair or validate tracking, then compare defined steps and segments.
+1. Mobile selection happened without the expected page event.
+2. New mobile users paying with one digital wallet.
+3. Error logs and session recordings.
+
+### Application Model Response
+
+Mobile conversion is lower, but we cannot yet treat the 29% rate as a product failure because one funnel step is not tracked reliably. I will first validate and repair the event, confirm the eligible population and conversion window, then compare mobile segments. After measurement is stable, we can investigate the largest verified customer obstacle.
