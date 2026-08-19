@@ -149,6 +149,7 @@ function assert(condition, message) {
   expectLoadFailure = false;
   await page.locator("#retryWritingButton").click();
   await page.locator("#writingError").waitFor({ state: "hidden" });
+  await page.locator("#writingDraft:not([disabled])").waitFor();
   assert(!(await page.locator("#writingDraft").isDisabled()), "Retry did not restore the writing editor");
   if (screenshotDir) {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -344,6 +345,7 @@ function assert(condition, message) {
   await advancedPage.setViewportSize({ width: 1440, height: 960 });
   await advancedPage.locator('button[data-advanced-day="2"]').click();
   await advancedPage.locator("#readerView:not([hidden])").waitFor();
+  await advancedPage.locator('.application-reference summary').waitFor();
   assert(await advancedPage.locator('.application-reference summary').count() === 1, "Completed application should unlock its model response");
   await advancedPage.locator("#backButton").click();
   await advancedPage.locator('.nav-button[data-view="dashboard"]').click();
