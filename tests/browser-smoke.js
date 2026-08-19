@@ -46,6 +46,13 @@ function assert(condition, message) {
   assert((await page.locator("#todayModeLabel").innerText()) === "READY TO START", "Fresh progress should wait for an explicit start");
   if (screenshotDir) await page.screenshot({ path: screenshotDir + "/v12-writing-dashboard.png", fullPage: true });
 
+  await page.locator('[data-program="readingAdvanced"]').click();
+  assert(!(await page.locator("#startTrainingButton").isDisabled()), "Complete advanced content should unlock training");
+  let pendingAdvanced = await page.evaluate(() => JSON.parse(localStorage.getItem("metricEnglish.v1")));
+  assert(Object.keys(pendingAdvanced.advancedReadingProgram.attempts).length === 0, "Pending advanced content created an attempt");
+  if (screenshotDir) await page.screenshot({ path: screenshotDir + "/v13-core-content-pending.png", fullPage: true });
+  await page.locator('[data-program="writing"]').click();
+
   await page.locator("#startTrainingButton").click();
   await page.locator("#writingView:not([hidden])").waitFor();
   await page.locator("#writingDraft:not([disabled])").waitFor();
@@ -58,7 +65,7 @@ function assert(condition, message) {
   await page.locator("#writingDraft").fill(maliciousDraft);
   await page.waitForTimeout(650);
   let stored = await page.evaluate(() => JSON.parse(localStorage.getItem("metricEnglish.v1")));
-  assert(stored.schemaVersion === 3, "Progress schema should be V3");
+  assert(stored.schemaVersion === 4, "Progress schema should be V4");
   assert(stored.writingProgram.attempts["1"].draftText === maliciousDraft, "Draft autosave did not preserve text");
   assert(stored.writingProgram.attempts["1"].firstSubmission === null, "Autosave must not submit a draft");
 
@@ -117,9 +124,9 @@ function assert(condition, message) {
   assert((await page.locator("#recordsList").innerText()).includes("10/10"), "Saved self-review score is missing from records");
 
   await page.locator('.nav-button[data-view="dashboard"]').click();
-  await page.locator('[data-program="reading"]').click();
+  await page.locator('[data-program="readingFoundation"]').click();
   assert(await page.locator("#dailyTaskList .daily-task").count() === 4, "V1.1 reading tasks were not preserved");
-  assert(await page.locator("#libraryList .library-item").count() === 11, "Reading library should keep one framework and ten articles");
+  assert(await page.locator("#libraryList .library-item").count() === 41, "Reading library should contain one framework and forty articles");
   await page.locator("#startTrainingButton").click();
   await page.locator("#readerView:not([hidden])").waitFor();
   await page.locator("#readerContent .markdown-body").waitFor();
@@ -176,12 +183,202 @@ function assert(condition, message) {
   });
   await migrationPage.reload({ waitUntil: "networkidle" });
   const migrated = await migrationPage.evaluate(() => JSON.parse(localStorage.getItem("metricEnglish.v1")));
-  assert(migrated.schemaVersion === 3, "V2 progress did not migrate to V3");
+  assert(migrated.schemaVersion === 4, "V2 progress did not migrate to V4");
   assert(migrated.completed[0] === "dashboard-basics" && migrated.learnedWords[0] === "metric", "Migration lost V1.1 learning data");
   assert(migrated.lastReader.section === "Vocabulary", "Migration lost the reading resume point");
   assert(migrated.activeProgram === "writing", "Migrated users should enter the writing stage");
   assert(Object.keys(migrated.writingProgram.attempts).length === 0, "Migration should start with empty writing progress");
+  assert(Object.keys(migrated.advancedReadingProgram.attempts).length === 0, "Migration should start with empty advanced reading progress");
+
+  await migrationPage.evaluate(() => {
+    localStorage.setItem("metricEnglish.v1", JSON.stringify({
+      startedAt: "2026-08-01",
+      completed: ["business-questions"],
+      learnedWords: ["stakeholder"],
+      daily: {},
+      lastOpened: "business-questions",
+      fontScale: 1
+    }));
+  });
+  await migrationPage.reload({ waitUntil: "networkidle" });
+  const migratedV1 = await migrationPage.evaluate(() => JSON.parse(localStorage.getItem("metricEnglish.v1")));
+  assert(migratedV1.schemaVersion === 4 && migratedV1.completed.includes("business-questions"), "V1 progress did not migrate to V4");
+  assert(migratedV1.lastReader.itemId === "business-questions", "V1 migration lost lastOpened");
+
+  await migrationPage.evaluate(() => {
+    localStorage.setItem("metricEnglish.v1", JSON.stringify({
+      schemaVersion: 3,
+      startedAt: "2026-08-01",
+      completed: ["clean-data"],
+      learnedWords: ["duplicate"],
+      daily: {},
+      lastView: "dashboard",
+      lastWritingDay: 1,
+      fontScale: 1,
+      activeProgram: "reading",
+      writingProgram: {
+        startedAt: "2026-08-02T00:00:00.000Z",
+        completedAt: null,
+        attempts: {
+          "1": {
+            exerciseId: "day-01",
+            draftText: "A preserved schema three writing draft.",
+            startedAt: "2026-08-02T00:00:00.000Z",
+            updatedAt: "2026-08-02T00:05:00.000Z",
+            activeSeconds: 300,
+            firstSubmission: null,
+            assessment: null,
+            completedAt: null
+          }
+        }
+      }
+    }));
+  });
+  await migrationPage.reload({ waitUntil: "networkidle" });
+  const migratedV3 = await migrationPage.evaluate(() => JSON.parse(localStorage.getItem("metricEnglish.v1")));
+  assert(migratedV3.schemaVersion === 4, "V3 progress did not migrate to V4");
+  assert(migratedV3.activeProgram === "readingFoundation", "V3 reading program did not map to foundation reading");
+  assert(migratedV3.writingProgram.attempts["1"].draftText === "A preserved schema three writing draft.", "V3 migration lost writing progress");
+  assert(Object.keys(migratedV3.advancedReadingProgram.attempts).length === 0, "V3 migration should not invent advanced progress");
   await migrationContext.close();
+
+  const advancedContext = await browser.newContext();
+  const advancedPage = await advancedContext.newPage();
+  const advancedErrors = [];
+  advancedPage.on("pageerror", (error) => advancedErrors.push("pageerror: " + error.message));
+  await advancedPage.goto(baseUrl, { waitUntil: "networkidle" });
+  await advancedPage.evaluate(() => localStorage.clear());
+  await advancedPage.reload({ waitUntil: "networkidle" });
+  await advancedPage.locator('[data-program="readingAdvanced"]').click();
+  assert((await advancedPage.locator("#dayNumber").innerText()) === "001", "Advanced reading should start on day one");
+  assert(!(await advancedPage.locator("#startTrainingButton").isDisabled()), "Valid 30-article manifest should unlock advanced reading");
+  await advancedPage.locator('.nav-button[data-view="library"]').click();
+  await advancedPage.locator("#moduleFilter").selectOption("sql");
+  assert(await advancedPage.locator("#libraryCards .article-card").count() === 5, "SQL module filter should return five articles");
+  await advancedPage.locator("#statusFilter").selectOption("complete");
+  assert(await advancedPage.locator("#libraryCards .article-card").count() === 0, "Completion filter should exclude unread articles");
+  await advancedPage.locator("#statusFilter").selectOption("all");
+  await advancedPage.locator("#moduleFilter").selectOption("all");
+  await advancedPage.locator('.nav-button[data-view="dashboard"]').click();
+
+  await advancedPage.locator("#startTrainingButton").click();
+  await advancedPage.locator("#advancedPracticePanel:not([hidden])").waitFor();
+  assert((await advancedPage.locator("#advancedPracticeKicker").innerText()).includes("DAY 01"), "Advanced deep-reading day did not open");
+  assert(await advancedPage.locator("#advancedTaskList input").count() === 4, "Deep-reading day should contain four tasks");
+  for (const checkbox of await advancedPage.locator("#advancedTaskList input").all()) await checkbox.check();
+  assert(!(await advancedPage.locator("#completeAdvancedDayButton").isDisabled()), "Four deep-reading tasks should unlock completion");
+  await advancedPage.locator("#completeAdvancedDayButton").click();
+  await advancedPage.locator("#dashboardView:not([hidden])").waitFor();
+  assert((await advancedPage.locator("#dayNumber").innerText()) === "002", "Completing day one did not unlock day two");
+
+  await advancedPage.locator("#startTrainingButton").click();
+  await advancedPage.locator("#advancedResponse:not([hidden])").waitFor();
+  const maliciousResponse = '<img src=x onerror=window.__advancedXss=1> The conversion rate fell after the mobile checkout update, while desktop performance stayed stable. I recommend reviewing payment errors by browser, comparing affected customer segments, and sharing a validated root cause before the team changes the campaign budget or rollout plan.';
+  await advancedPage.locator("#advancedResponse").fill(maliciousResponse);
+  await advancedPage.waitForTimeout(650);
+  let advancedStored = await advancedPage.evaluate(() => JSON.parse(localStorage.getItem("metricEnglish.v1")));
+  assert(advancedStored.schemaVersion === 4, "Advanced progress should use schema V4");
+  assert(advancedStored.advancedReadingProgram.attempts["2"].applicationText === maliciousResponse, "Advanced response autosave failed");
+  assert(await advancedPage.locator("#advancedPracticePanel img").count() === 0, "Advanced response was interpreted as HTML");
+  assert(await advancedPage.evaluate(() => window.__advancedXss) !== 1, "Advanced response executed injected code");
+
+  await advancedPage.evaluate(() => {
+    const data = JSON.parse(localStorage.getItem("metricEnglish.v1"));
+    data.advancedReadingProgram.startedAt = "2020-01-01T00:00:00.000Z";
+    localStorage.setItem("metricEnglish.v1", JSON.stringify(data));
+  });
+  await advancedPage.reload({ waitUntil: "networkidle" });
+  await advancedPage.locator("#advancedResponse:not([hidden])").waitFor();
+  assert((await advancedPage.locator("#advancedPracticeKicker").innerText()).includes("DAY 02"), "Advanced plan advanced because calendar time changed");
+  assert(await advancedPage.locator("#advancedResponse").inputValue() === maliciousResponse, "Advanced response did not survive reload");
+  if (screenshotDir) await advancedPage.screenshot({ path: screenshotDir + "/v13-application-desktop.png", fullPage: true });
+
+  await advancedPage.evaluate(() => {
+    window.__metricOriginalSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function () { throw new Error("simulated storage failure"); };
+  });
+  await advancedPage.locator("#advancedResponse").fill(maliciousResponse + " This sentence must remain unsaved.");
+  await advancedPage.waitForTimeout(650);
+  advancedStored = await advancedPage.evaluate(() => JSON.parse(localStorage.getItem("metricEnglish.v1")));
+  assert(advancedStored.advancedReadingProgram.attempts["2"].applicationText === maliciousResponse, "Failed response save changed persisted data");
+  assert((await advancedPage.locator("#advancedSaveIndicator").innerText()).includes("尚未保存"), "Failed response save did not show unsaved status");
+  assert(await advancedPage.locator("#completeAdvancedDayButton").isDisabled(), "Unsaved response incorrectly unlocked completion");
+  await advancedPage.evaluate(() => { Storage.prototype.setItem = window.__metricOriginalSetItem; });
+  await advancedPage.locator("#advancedResponse").fill(maliciousResponse);
+  await advancedPage.waitForTimeout(650);
+
+  await advancedPage.evaluate(() => {
+    window.__metricOriginalSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function () { throw new Error("simulated storage failure"); };
+  });
+  await advancedPage.locator("#advancedTaskList input").first().click();
+  assert(!(await advancedPage.locator("#advancedTaskList input").first().isChecked()), "Failed task save did not roll the UI back");
+  await advancedPage.evaluate(() => { Storage.prototype.setItem = window.__metricOriginalSetItem; });
+  for (const checkbox of await advancedPage.locator("#advancedTaskList input").all()) await checkbox.check();
+  assert(!(await advancedPage.locator("#completeAdvancedDayButton").isDisabled()), "Saved 40-word response and three tasks should unlock application completion");
+  await advancedPage.locator("#completeAdvancedDayButton").click();
+  await advancedPage.locator("#dashboardView:not([hidden])").waitFor();
+  assert((await advancedPage.locator("#dayNumber").innerText()) === "003", "Completing application day did not unlock the next article");
+  advancedPage.once("dialog", (dialog) => dialog.accept());
+  await advancedPage.locator("#resetAdvancedButton").click();
+  const resetData = await advancedPage.evaluate(() => JSON.parse(localStorage.getItem("metricEnglish.v1")));
+  assert(Object.keys(resetData.advancedReadingProgram.attempts).length === 0, "Advanced reset should clear only advanced attempts");
+  assert((await advancedPage.locator("#dayNumber").innerText()) === "001", "Advanced reset should return to day one");
+
+  await advancedPage.evaluate(() => {
+    const data = JSON.parse(localStorage.getItem("metricEnglish.v1"));
+    const applicationText = "This response contains enough English words to satisfy the application requirement while the browser test verifies stable progress across every advanced reading day in the sixty day sequence without relying on calendar dates or external services. The analyst also explains the evidence, business impact, recommended action, responsible owner, and expected review timeline clearly.";
+    const modules = ["sql", "metrics", "experiments", "communication", "quality", "strategy"];
+    void modules;
+    data.activeProgram = "readingAdvanced";
+    data.lastView = "dashboard";
+    data.advancedReadingProgram.startedAt = "2026-08-01T00:00:00.000Z";
+    data.advancedReadingProgram.attempts = {};
+    for (let day = 1; day <= 58; day += 1) {
+      const deep = day % 2 === 1;
+      data.advancedReadingProgram.attempts[String(day)] = {
+        articleId: "",
+        mode: deep ? "deep" : "apply",
+        tasks: deep ? ["read", "words", "grammar", "questions"] : ["translation", "extension", "retell"],
+        applicationText: deep ? "" : applicationText,
+        startedAt: "2026-08-01T00:00:00.000Z",
+        updatedAt: "2026-08-01T00:10:00.000Z",
+        completedAt: "2026-08-01T00:10:00.000Z"
+      };
+    }
+    localStorage.setItem("metricEnglish.v1", JSON.stringify(data));
+  });
+  await advancedPage.reload({ waitUntil: "networkidle" });
+  assert((await advancedPage.locator("#dayNumber").innerText()) === "059", "First incomplete advanced record should derive day 59");
+  assert((await advancedPage.locator("#assignmentTitle").innerText()) === "Make a Decision Under Uncertainty", "Day 59 should map to article 30");
+  assert((await advancedPage.locator("#todayModeLabel").innerText()) === "DEEP READING", "Day 59 should be a deep-reading day");
+  await advancedPage.evaluate(() => {
+    const data = JSON.parse(localStorage.getItem("metricEnglish.v1"));
+    data.advancedReadingProgram.attempts["59"] = {
+      articleId: "decision-uncertainty",
+      mode: "deep",
+      tasks: ["read", "words", "grammar", "questions"],
+      applicationText: "",
+      startedAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: "2026-08-01T00:10:00.000Z",
+      completedAt: "2026-08-01T00:10:00.000Z"
+    };
+    localStorage.setItem("metricEnglish.v1", JSON.stringify(data));
+  });
+  await advancedPage.reload({ waitUntil: "networkidle" });
+  assert((await advancedPage.locator("#dayNumber").innerText()) === "060", "Completing day 59 should derive day 60");
+  assert((await advancedPage.locator("#assignmentTitle").innerText()) === "Make a Decision Under Uncertainty", "Day 60 should remain on article 30");
+  assert((await advancedPage.locator("#todayModeLabel").innerText()) === "WORKPLACE APPLICATION", "Day 60 should be an application day");
+  if (screenshotDir) {
+    await advancedPage.setViewportSize({ width: 390, height: 844 });
+    await advancedPage.waitForTimeout(350);
+    assert(await advancedPage.locator("#sidebar").evaluate((element) => element.inert), "Advanced mobile sidebar should be closed and inert");
+    const advancedMobileOverflow = await advancedPage.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    assert(advancedMobileOverflow <= 1, "Advanced dashboard has horizontal overflow on mobile");
+    await advancedPage.screenshot({ path: screenshotDir + "/v13-dashboard-mobile.png", fullPage: true });
+  }
+  assert(advancedErrors.length === 0, advancedErrors.join("\n"));
+  await advancedContext.close();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => window.scrollTo(0, 0));
@@ -212,7 +409,7 @@ function assert(condition, message) {
   }
 
   assert(runtimeErrors.length === 0, runtimeErrors.join("\n"));
-  console.log("V1.2 browser smoke test passed");
+  console.log("V1.3 browser smoke test passed");
   await browser.close();
 })().catch((error) => {
   console.error(error.stack || error);

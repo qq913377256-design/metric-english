@@ -154,6 +154,17 @@ a:focus-visible {
   font-size: 12px;
 }
 .filter-chip.is-active, .filter-chip:hover { color: var(--white); background: var(--ink); border-color: var(--ink); }
+.filter-selects { display: grid; gap: 10px; margin-bottom: 18px; }
+.select-field span { display: block; margin-bottom: 6px; color: var(--ink-soft); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.select-field select {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 30px 8px 10px;
+  color: var(--ink);
+  background: rgba(255, 253, 248, .75);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
 
 .library-list { display: grid; gap: 4px; }
 .library-item {
@@ -242,6 +253,8 @@ h1, h2, h3 { color: var(--ink); font-family: Georgia, "Times New Roman", "Noto S
 .stats-panel > p:last-child { margin: 10px 0 0; color: var(--ink-soft); font-size: 12px; }
 .data-actions { display: flex; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
 .data-actions .secondary-button { flex: 1; }
+.data-actions .danger-button { color: #8f2f24; border-color: #c99e97; }
+.data-actions .danger-button:hover { color: var(--white); background: #8f2f24; border-color: #8f2f24; }
 
 .text-button { min-height: 44px; padding: 6px 0; color: var(--signal-dark); background: none; border: 0; border-bottom: 1px solid currentColor; cursor: pointer; font-size: 12px; }
 .roadmap-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0; margin: 24px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
@@ -313,7 +326,7 @@ h1, h2, h3 { color: var(--ink); font-family: Georgia, "Times New Roman", "Noto S
 
 .program-switch {
   display: inline-grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 3px;
   margin-bottom: 30px;
   padding: 4px;
@@ -336,6 +349,43 @@ h1, h2, h3 { color: var(--ink); font-family: Georgia, "Times New Roman", "Noto S
 .program-switch button[aria-pressed="true"] { color: var(--white); background: var(--ink); box-shadow: 0 5px 14px rgba(23, 50, 77, .14); }
 .program-switch span { color: var(--signal); font: 700 10px/1 Georgia, serif; letter-spacing: .12em; }
 .program-switch strong { font-size: 13px; }
+.advanced-practice-panel {
+  margin-top: 22px;
+  padding: clamp(22px, 4vw, 38px);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-top: 5px solid var(--signal);
+  box-shadow: var(--shadow);
+}
+.advanced-practice-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.advanced-practice-heading h2 { margin: 0; font-size: clamp(26px, 3vw, 36px); }
+.advanced-practice-heading > div > p:last-child { margin: 9px 0 0; color: var(--ink-soft); font-size: 13px; }
+.advanced-task-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 26px 0; }
+.advanced-task-list .daily-task { min-height: 58px; margin: 0; border: 1px solid var(--line); border-left: 3px solid var(--line); }
+.advanced-task-list .daily-task.is-requirement-met { color: #71808a; border-left-color: var(--teal); }
+.advanced-task-list .task-requirement { cursor: default; }
+.advanced-task-list .task-requirement .task-mark { flex: 0 0 24px; display: grid; place-items: center; width: 24px; height: 24px; color: var(--ink-soft); background: var(--white); border: 1px solid var(--line); border-radius: 50%; font: 700 11px/1 Georgia, serif; }
+.advanced-task-list .task-requirement.is-requirement-met .task-mark { color: var(--white); background: var(--teal); border-color: var(--teal); }
+.advanced-response-group { margin: 24px 0; padding: clamp(18px, 3vw, 26px); background: var(--paper); border-left: 4px solid var(--teal); }
+.advanced-response-group > p { margin: 0 0 14px; color: var(--ink-soft); font-size: 13px; line-height: 1.65; }
+.advanced-response-prompt { margin: 14px 0; padding: 14px 16px; background: #fffefb; border: 1px solid var(--line); }
+.advanced-response-prompt p { margin: 0; color: var(--ink-soft); font-size: 13px; line-height: 1.7; }
+.response-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.response-heading span { color: var(--teal); font: 700 11px/1 Georgia, serif; }
+#advancedResponse {
+  display: block;
+  width: 100%;
+  min-height: 210px;
+  padding: 18px;
+  resize: vertical;
+  color: var(--ink);
+  background: #fffefb;
+  border: 1px solid #bdb4a6;
+  border-radius: 2px;
+  font: 16px/1.8 Georgia, "Times New Roman", serif;
+}
+#advancedResponse::placeholder { color: #939b9f; }
+#completeAdvancedDayButton { width: 100%; min-height: 48px; }
 .task-status { cursor: default; }
 .task-status .task-mark { flex: 0 0 24px; display: grid; place-items: center; width: 24px; height: 24px; color: var(--ink-soft); background: var(--white); border: 1px solid var(--line); border-radius: 50%; font: 700 11px/1 Georgia, serif; }
 .task-status.is-done { color: #71808a; border-left-color: var(--teal); }
@@ -426,7 +476,7 @@ h1, h2, h3 { color: var(--ink); font-family: Georgia, "Times New Roman", "Noto S
 .task-copy { max-width: none; margin: 22px 0; padding: 18px; color: var(--ink-soft); background: var(--paper); border-left: 4px solid var(--signal); font-size: 15px; line-height: 1.72; }
 .task-copy p:last-child, .task-copy ul:last-child { margin-bottom: 0; }
 .editor-label, .reflection-label { display: block; margin: 0 0 9px; color: var(--ink); font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-#writingDraft, #reflectionNote {
+#writingDraft, #reflectionNote, #advancedResponse {
   display: block;
   width: 100%;
   resize: vertical;
@@ -436,7 +486,7 @@ h1, h2, h3 { color: var(--ink); font-family: Georgia, "Times New Roman", "Noto S
   border-radius: 2px;
 }
 #writingDraft { min-height: 330px; padding: 20px; font: 17px/1.8 Georgia, "Times New Roman", serif; }
-#writingDraft::placeholder, #reflectionNote::placeholder { color: #939b9f; }
+#writingDraft::placeholder, #reflectionNote::placeholder, #advancedResponse::placeholder { color: #939b9f; }
 #reflectionNote { padding: 13px; line-height: 1.6; }
 .editor-status { display: flex; justify-content: space-between; gap: 18px; padding: 11px 2px; color: var(--ink-soft); font-size: 11px; }
 .editor-status strong { color: var(--ink); font-family: Georgia, serif; }
@@ -503,6 +553,9 @@ h1, h2, h3 { color: var(--ink); font-family: Georgia, "Times New Roman", "Noto S
   .dashboard-hero { align-items: flex-start; flex-direction: column; }
   .program-switch { display: grid; width: 100%; }
   .program-switch button { min-width: 0; justify-content: center; }
+  .advanced-practice-heading { align-items: flex-start; flex-direction: column; }
+  .advanced-task-list { grid-template-columns: 1fr; }
+  .response-heading { align-items: flex-start; flex-direction: column; }
   .day-counter { align-self: stretch; text-align: left; }
   .dashboard-grid { gap: 12px; }
   .panel { padding: 22px 18px; }

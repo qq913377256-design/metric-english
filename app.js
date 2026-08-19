@@ -2,10 +2,12 @@
   "use strict";
 
   const STORAGE_KEY = "metricEnglish.v1";
-  const STORAGE_SCHEMA = 3;
+  const STORAGE_SCHEMA = 4;
   const READING_PLAN_DAYS = 30;
   const WRITING_PLAN_DAYS = 30;
+  const ADVANCED_READING_PLAN_DAYS = 60;
   const MAX_DRAFT_LENGTH = 10000;
+  const MAX_ADVANCED_RESPONSE_LENGTH = 3000;
   const MAX_NOTE_LENGTH = 500;
   const MAX_ACTIVE_SECONDS = 7200;
   const SECTION_LABELS = {
@@ -81,6 +83,39 @@
       ]
     }
   ];
+  const ADVANCED_READING_MODES = [
+    {
+      id: "deep",
+      label: "DEEP READING",
+      title: "精读日 · 30–35分钟",
+      description: "先独立读懂文章，再处理词汇、语法和理解问题",
+      tasks: [
+        { id: "read", label: "不看翻译阅读英文原文", time: "12 min" },
+        { id: "words", label: "学习重点词汇", time: "8 min" },
+        { id: "grammar", label: "阅读语法解析", time: "7 min" },
+        { id: "questions", label: "完成理解问题", time: "6 min" }
+      ]
+    },
+    {
+      id: "apply",
+      label: "WORKPLACE APPLICATION",
+      title: "应用日 · 30–35分钟",
+      description: "复读文章并把方法转成自己的英文业务表达",
+      tasks: [
+        { id: "translation", label: "重新阅读并核对中文翻译", time: "8 min" },
+        { id: "extension", label: "学习分析师延伸", time: "7 min" },
+        { id: "retell", label: "完成1分钟英文复述", time: "5 min" }
+      ]
+    }
+  ];
+  const ADVANCED_MODULES = [
+    { id: "sql", title: "SQL与数据建模" },
+    { id: "metrics", title: "指标与产品分析" },
+    { id: "experiments", title: "实验与统计" },
+    { id: "communication", title: "报告与沟通" },
+    { id: "quality", title: "数据质量与治理" },
+    { id: "strategy", title: "策略与管理层表达" }
+  ];
 
   let progressNotice = "";
   const state = {
@@ -88,8 +123,11 @@
     writingManifest: [],
     currentItem: null,
     currentSections: {},
+    currentApplicationPrompt: "",
     activeSection: "English Original",
     activeLevel: "all",
+    activeModule: "all",
+    completionFilter: "all",
     query: "",
     viewBeforeReader: "dashboard",
     bilingual: false,
@@ -99,6 +137,7 @@
     readingLoadError: false,
     writingLoadError: false,
     currentWritingDay: 1,
+    currentAdvancedDay: 1,
     writingSections: {},
     writingMaterialLoaded: false,
     timerInterval: null,
@@ -123,20 +162,22 @@
 
   function cacheElements() {
     [
-      "sidebar", "menuButton", "searchInput", "libraryList", "libraryCards", "dashboardView", "libraryView", "readerView",
+      "sidebar", "menuButton", "searchInput", "moduleFilter", "statusFilter", "libraryList", "libraryCards", "dashboardView", "libraryView", "readerView",
       "recordsView", "writingView", "libraryTools", "dailyTaskList", "dailyPercent", "startTrainingButton", "todayAssignment",
       "openFrameworkButton", "headerStreak", "headerProgress", "statCompleted", "statWords", "statStreak", "statCompletedLabel",
       "statWordsLabel", "statStreakLabel", "progressTrack", "progressBar", "progressCopy", "todayLabel", "dayNumber", "dayTotal",
       "dayCounter", "dashboardTitle", "heroCopy", "roadmapKicker", "roadmapTitle", "readerEyebrow", "readerTitle", "readerMeta",
       "readerToolbar", "sectionTabs", "readerContent", "completeButton", "completeButtonBottom", "backButton", "bilingualButton",
       "fontDownButton", "fontUpButton", "toast", "mainContent", "sidebarScrim", "resumeReadingButton", "exportProgressButton",
-      "importProgressButton", "importProgressInput", "roadmapList", "todayModeLabel", "todayPlanTitle", "recordsList",
+      "importProgressButton", "importProgressInput", "resetAdvancedButton", "roadmapList", "todayModeLabel", "todayPlanTitle", "recordsList",
       "benchmarkPanel", "benchmarkTitle", "openCurrentWritingButton", "writingBackButton", "writingEyebrow", "writingTitle",
       "writingMeta", "saveIndicator", "workplaceContext", "writingDataBrief", "modelExampleCard", "modelEmail", "languageSupport",
       "languageToolkit", "writingModeLabel", "writingTaskTitle", "writingTarget", "writingTask", "writingDraft", "wordCount",
       "activeTimer", "copyDraftButton", "submitWritingButton", "submissionPanel", "firstSubmissionText", "copySubmissionButton",
       "rubricForm", "rubricFields", "reflectionNote", "rubricTotal", "saveAssessmentButton", "referencePanel", "referenceAnswer",
-      "structureBreakdown", "oralRetell", "nextWritingButton", "writingError", "retryWritingButton"
+      "structureBreakdown", "oralRetell", "nextWritingButton", "writingError", "retryWritingButton", "advancedPracticePanel",
+      "advancedPracticeKicker", "advancedPracticeTitle", "advancedPracticeCopy", "advancedTaskList", "advancedResponseGroup",
+      "advancedResponsePrompt", "advancedResponse", "advancedResponseCount", "advancedResponseHint", "advancedSaveIndicator", "completeAdvancedDayButton"
     ].forEach((id) => { elements[id] = document.getElementById(id); });
   }
 
@@ -160,6 +201,14 @@
       state.query = event.target.value.trim().toLowerCase();
       renderLibrary();
     });
+    elements.moduleFilter.addEventListener("change", (event) => {
+      state.activeModule = event.target.value;
+      renderLibrary();
+    });
+    elements.statusFilter.addEventListener("change", (event) => {
+      state.completionFilter = event.target.value;
+      renderLibrary();
+    });
     elements.dailyTaskList.addEventListener("change", onReadingTaskChange);
     elements.startTrainingButton.addEventListener("click", startCurrentTraining);
     elements.resumeReadingButton.addEventListener("click", () => openItem(state.data.lastReader?.itemId, { resume: true }));
@@ -167,6 +216,7 @@
     elements.exportProgressButton.addEventListener("click", exportProgress);
     elements.importProgressButton.addEventListener("click", () => elements.importProgressInput.click());
     elements.importProgressInput.addEventListener("change", importProgress);
+    elements.resetAdvancedButton.addEventListener("click", resetAdvancedReadingProgram);
     elements.openFrameworkButton.addEventListener("click", () => openItem("nce3-framework"));
     elements.backButton.addEventListener("click", () => showView(state.viewBeforeReader));
     elements.writingBackButton.addEventListener("click", () => showView("dashboard"));
@@ -196,6 +246,9 @@
     elements.rubricForm.addEventListener("submit", submitAssessment);
     elements.nextWritingButton.addEventListener("click", openNextWriting);
     elements.retryWritingButton.addEventListener("click", () => openWritingDay(state.currentWritingDay, { retry: true }));
+    elements.advancedTaskList.addEventListener("change", onAdvancedTaskChange);
+    elements.advancedResponse.addEventListener("input", onAdvancedResponseInput);
+    elements.completeAdvancedDayButton.addEventListener("click", completeAdvancedReadingDay);
     elements.recordsList.addEventListener("click", (event) => {
       const button = event.target.closest("button[data-writing-day]");
       if (button) openWritingDay(Number(button.dataset.writingDay));
@@ -209,6 +262,7 @@
       saveReaderPosition({ type: "beforeunload" });
       pauseWritingTimer();
       persistWritingDraft();
+      persistAdvancedResponse();
     });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && elements.sidebar.classList.contains("is-open")) toggleSidebar(false);
@@ -228,7 +282,8 @@
       lastWritingDay: 1,
       fontScale: 1,
       activeProgram: "writing",
-      writingProgram: { startedAt: null, completedAt: null, attempts: {} }
+      writingProgram: { startedAt: null, completedAt: null, attempts: {} },
+      advancedReadingProgram: { startedAt: null, completedAt: null, attempts: {} }
     };
   }
 
@@ -259,6 +314,7 @@
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error("Progress must be an object");
     const fallback = defaultProgress();
     const legacySchema = Number(candidate.schemaVersion) || 1;
+    if (!Number.isInteger(legacySchema) || legacySchema < 1 || legacySchema > STORAGE_SCHEMA) throw new Error("Progress schema is not supported");
     const parsedStart = parseLocalDate(candidate.startedAt || "");
     const validDate = /^\d{4}-\d{2}-\d{2}$/.test(candidate.startedAt || "") &&
       !Number.isNaN(parsedStart.getTime()) && localDateKey(parsedStart) === candidate.startedAt;
@@ -278,13 +334,16 @@
       scrollY: finiteNumber(sourceReader.scrollY, 0, 100000, 0)
     } : legacyLastOpened ? { itemId: safeText(legacyLastOpened, 120), section: "English Original", bilingual: false, scrollY: 0 } : null;
     const writingProgram = sanitizeWritingProgram(candidate.writingProgram);
+    const advancedReadingProgram = sanitizeAdvancedReadingProgram(candidate.advancedReadingProgram);
     const allowedViews = ["dashboard", "library", "reader", "records", "writing"];
     let lastView = allowedViews.includes(candidate.lastView) ? candidate.lastView : "dashboard";
     if (lastView === "reader" && !lastReader) lastView = "dashboard";
     if (legacySchema < STORAGE_SCHEMA) {
       lastView = "dashboard";
-      progressNotice = "V1.1进度已保留，写作训练已准备好";
+      progressNotice = "V1.3数据升级完成，原有阅读和写作进度已保留";
     }
+    const activeProgram = candidate.activeProgram === "readingAdvanced" ? "readingAdvanced" :
+      ["reading", "readingFoundation"].includes(candidate.activeProgram) ? "readingFoundation" : "writing";
     return {
       schemaVersion: STORAGE_SCHEMA,
       startedAt,
@@ -296,8 +355,47 @@
       lastView,
       lastWritingDay: Math.round(finiteNumber(candidate.lastWritingDay, 1, WRITING_PLAN_DAYS, 1)),
       fontScale: finiteNumber(candidate.fontScale, 0.8, 1.3, 1),
-      activeProgram: candidate.activeProgram === "reading" ? "reading" : "writing",
-      writingProgram
+      activeProgram,
+      writingProgram,
+      advancedReadingProgram
+    };
+  }
+
+  function sanitizeAdvancedReadingProgram(value) {
+    const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const attempts = {};
+    if (source.attempts && typeof source.attempts === "object" && !Array.isArray(source.attempts)) {
+      Object.entries(source.attempts).slice(0, ADVANCED_READING_PLAN_DAYS).forEach(([dayKey, attempt]) => {
+        const day = Number(dayKey);
+        if (Number.isInteger(day) && day >= 1 && day <= ADVANCED_READING_PLAN_DAYS) {
+          attempts[String(day)] = sanitizeAdvancedAttempt(attempt, day);
+        }
+      });
+    }
+    const allComplete = Array.from({ length: ADVANCED_READING_PLAN_DAYS }, (_, index) => attempts[String(index + 1)]?.completedAt).every(Boolean);
+    return {
+      startedAt: safeIso(source.startedAt),
+      completedAt: allComplete ? safeIso(source.completedAt) || new Date().toISOString() : null,
+      attempts
+    };
+  }
+
+  function sanitizeAdvancedAttempt(value, day) {
+    const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const mode = ADVANCED_READING_MODES[(day - 1) % ADVANCED_READING_MODES.length];
+    const allowedTasks = new Set(mode.tasks.map((task) => task.id));
+    const tasks = uniqueStrings(source.tasks, 10).filter((task) => allowedTasks.has(task));
+    const applicationText = safeText(source.applicationText, MAX_ADVANCED_RESPONSE_LENGTH);
+    const taskComplete = mode.tasks.every((task) => tasks.includes(task.id));
+    const responseComplete = mode.id !== "apply" || countEnglishWords(applicationText) >= 40;
+    return {
+      articleId: safeText(source.articleId, 120),
+      mode: mode.id,
+      tasks,
+      applicationText,
+      startedAt: safeIso(source.startedAt),
+      updatedAt: safeIso(source.updatedAt),
+      completedAt: taskComplete && responseComplete ? safeIso(source.completedAt) : null
     };
   }
 
@@ -383,7 +481,8 @@
       const response = await fetch("./content/manifest.json", { cache: "no-store" });
       if (!response.ok) throw new Error(`Reading manifest failed: ${response.status}`);
       const manifest = await response.json();
-      if (!Array.isArray(manifest) || !manifest.some((item) => item?.type === "article" && isSafeContentPath(item.path))) {
+      const ids = Array.isArray(manifest) ? manifest.map((item) => item?.id) : [];
+      if (!Array.isArray(manifest) || !manifest.length || !manifest.every(isValidReadingEntry) || new Set(ids).size !== ids.length) {
         throw new Error("Reading manifest format is invalid");
       }
       state.manifest = manifest;
@@ -420,6 +519,16 @@
     return typeof path === "string" && /^\.\/content\/[A-Za-z0-9_./-]+\.md$/.test(path) && !path.includes("..");
   }
 
+  function isValidReadingEntry(item) {
+    if (!item || typeof item !== "object" || !isSafeContentPath(item.path)) return false;
+    if (!/^[a-z0-9-]{2,80}$/.test(item.id || "") || !["framework", "article"].includes(item.type)) return false;
+    if (!Number.isInteger(Number(item.order))) return false;
+    if (![item.title, item.titleZh, item.level, item.focus, item.summary].every((value) => typeof value === "string" && value.length > 0 && value.length <= 300)) return false;
+    if (item.type === "article" && !Number.isFinite(Number(item.minutes))) return false;
+    if (item.track === "advanced" && !ADVANCED_MODULES.some((module) => module.id === item.module)) return false;
+    return item.track === undefined || ["foundation", "advanced"].includes(item.track);
+  }
+
   function isValidWritingEntry(item) {
     if (!item || typeof item !== "object" || !isSafeContentPath(item.path)) return false;
     if (!/^[a-z0-9-]{2,80}$/.test(item.id || "") || !Number.isInteger(Number(item.order))) return false;
@@ -439,7 +548,9 @@
   function restoreLastView() {
     const view = state.data.lastView;
     if (view === "reader" && state.data.lastReader && state.manifest.some((item) => item.id === state.data.lastReader.itemId)) {
-      openItem(state.data.lastReader.itemId, { resume: true });
+      const advancedDay = state.data.activeProgram === "readingAdvanced" ? getCurrentAdvancedReadingDay() : null;
+      const advancedPlan = advancedDay ? getAdvancedReadingPlan(advancedDay) : null;
+      openItem(state.data.lastReader.itemId, { resume: true, advancedDay: advancedPlan?.article.id === state.data.lastReader.itemId ? advancedDay : null });
     } else if (view === "writing" && state.writingManifest.length) {
       openWritingDay(state.data.lastWritingDay || getCurrentWritingDay());
     } else if (view === "library" || view === "records") {
@@ -451,7 +562,10 @@
 
   function showView(view) {
     if (!["dashboard", "library", "reader", "records", "writing"].includes(view)) view = "dashboard";
-    if (state.currentView === "reader" && view !== "reader") saveReaderPosition({ type: "beforeunload" });
+    if (state.currentView === "reader" && view !== "reader") {
+      saveReaderPosition({ type: "beforeunload" });
+      persistAdvancedResponse();
+    }
     if (state.currentView === "writing" && view !== "writing") {
       pauseWritingTimer();
       persistWritingDraft();
@@ -505,19 +619,25 @@
   }
 
   function setActiveProgram(program) {
-    if (!["writing", "reading"].includes(program) || state.data.activeProgram === program) return;
+    if (!["writing", "readingFoundation", "readingAdvanced"].includes(program) || state.data.activeProgram === program) return;
+    const previous = state.data.activeProgram;
     state.data.activeProgram = program;
     state.data.lastView = "dashboard";
-    saveProgress();
+    if (!saveProgress()) {
+      state.data.activeProgram = previous;
+      return;
+    }
     renderDashboard();
     showView("dashboard");
   }
 
   function renderDashboard() {
+    elements.resetAdvancedButton.hidden = state.data.activeProgram !== "readingAdvanced";
     document.querySelectorAll("[data-program]").forEach((button) => {
       button.setAttribute("aria-pressed", String(button.dataset.program === state.data.activeProgram));
     });
-    if (state.data.activeProgram === "reading") renderReadingDashboard();
+    if (state.data.activeProgram === "readingFoundation") renderReadingDashboard();
+    else if (state.data.activeProgram === "readingAdvanced") renderAdvancedReadingDashboard();
     else renderWritingDashboard();
   }
 
@@ -635,6 +755,112 @@
     }).join("");
   }
 
+  function renderAdvancedReadingDashboard() {
+    const currentDay = getCurrentAdvancedReadingDay();
+    const plan = getAdvancedReadingPlan(currentDay);
+    const started = Boolean(state.data.advancedReadingProgram.startedAt);
+    const complete = isAdvancedReadingProgramComplete();
+    elements.dashboardTitle.textContent = "把行业阅读转成英文分析表达";
+    elements.heroCopy.textContent = "每篇文章训练2天：先精读理解，再完成一段可用于工作的英文应用回答";
+    elements.dayNumber.textContent = String(complete ? ADVANCED_READING_PLAN_DAYS : currentDay).padStart(3, "0");
+    elements.dayTotal.textContent = "/ 060 DAYS";
+    elements.dayCounter.setAttribute("aria-label", `进阶阅读第${complete ? ADVANCED_READING_PLAN_DAYS : currentDay}天`);
+    elements.openFrameworkButton.hidden = true;
+    elements.resumeReadingButton.hidden = true;
+    elements.roadmapKicker.textContent = "60-DAY ADVANCED READING";
+    elements.roadmapTitle.textContent = "6个数据分析主题模块";
+
+    if (!isAdvancedContentReady() || !plan) {
+      elements.todayModeLabel.textContent = "ENGINE READY · CONTENT PENDING";
+      elements.todayPlanTitle.textContent = "进阶阅读内容正在准备";
+      elements.dailyTaskList.innerHTML = [
+        ["✓", "schema 4与旧数据迁移", "已就绪"],
+        ["✓", "60天顺序训练引擎", "已就绪"],
+        ["…", "30篇进阶阅读正文", `${getAdvancedArticles().length}/30篇`]
+      ].map(([mark, label, meta]) => `<div class="daily-task task-status ${mark === "✓" ? "is-done" : ""}"><span class="task-mark">${mark}</span><span>${label}</span><small>${meta}</small></div>`).join("");
+      elements.dailyPercent.textContent = "0%";
+      elements.dailyPercent.classList.remove("is-complete");
+      elements.todayAssignment.innerHTML = '<p class="assignment-type">V1.3 CORE</p><h2 id="assignmentTitle">核心训练引擎已接入</h2><p>进阶清单达到30篇并通过校验后，开始按钮会自动解锁。现有阅读和写作训练不受影响</p>';
+      elements.startTrainingButton.disabled = true;
+      elements.startTrainingButton.innerHTML = '等待30篇内容 <span aria-hidden="true">→</span>';
+      renderAdvancedReadingStats();
+      renderAdvancedReadingRoadmap(currentDay);
+      return;
+    }
+
+    if (complete) {
+      elements.todayModeLabel.textContent = "ADVANCED READING COMPLETE";
+      elements.todayPlanTitle.textContent = "60天进阶阅读已完成";
+      elements.dailyTaskList.innerHTML = '<div class="plan-finished"><strong>60 / 60天</strong><span>30篇文章和应用回答仍可继续回顾</span></div>';
+      elements.dailyPercent.textContent = "100%";
+      elements.dailyPercent.classList.add("is-complete");
+      elements.startTrainingButton.disabled = false;
+      elements.startTrainingButton.innerHTML = '回顾最后一篇 <span aria-hidden="true">→</span>';
+    } else if (!started) {
+      elements.todayModeLabel.textContent = "READY TO START";
+      elements.todayPlanTitle.textContent = "60天进阶阅读训练";
+      elements.dailyTaskList.innerHTML = [
+        ["01", "精读原文、词汇与语法", "奇数日"],
+        ["02", "复述并完成英文应用回答", "偶数日"],
+        ["03", "按完成顺序推进", "不按日期跳题"]
+      ].map(([mark, label, meta]) => `<div class="daily-task task-status"><span class="task-mark">${mark}</span><span>${label}</span><small>${meta}</small></div>`).join("");
+      elements.dailyPercent.textContent = "0%";
+      elements.dailyPercent.classList.remove("is-complete");
+      elements.startTrainingButton.disabled = false;
+      elements.startTrainingButton.innerHTML = '开始60天进阶阅读 <span aria-hidden="true">→</span>';
+    } else {
+      const attempt = getAdvancedAttempt(currentDay);
+      const requirementCount = getAdvancedRequirementCount(plan, attempt);
+      elements.todayModeLabel.textContent = plan.mode.label;
+      elements.todayPlanTitle.textContent = plan.mode.title;
+      elements.dailyTaskList.innerHTML = getAdvancedDashboardTasks(plan, attempt).map((task) => `<div class="daily-task task-status ${task.done ? "is-done" : ""}"><span class="task-mark">${task.done ? "✓" : "·"}</span><span>${escapeHtml(task.label)}</span><small>${escapeHtml(task.meta)}</small></div>`).join("");
+      elements.dailyPercent.textContent = `${requirementCount * 25}%`;
+      elements.dailyPercent.classList.toggle("is-complete", requirementCount === 4);
+      elements.startTrainingButton.disabled = false;
+      elements.startTrainingButton.innerHTML = `${attempt ? "继续今日训练" : "开始今日训练"} <span aria-hidden="true">→</span>`;
+    }
+
+    elements.todayAssignment.innerHTML = `
+      <p class="assignment-type">第${currentDay}天 · ${escapeHtml(plan.mode.title.split(" · ")[0])}</p>
+      <h2 id="assignmentTitle">${escapeHtml(plan.article.title)}</h2>
+      <p>${escapeHtml(plan.mode.description)}。${escapeHtml(plan.article.summary)}</p>
+      <div class="assignment-meta"><span class="meta-pill">${escapeHtml(plan.article.level)}</span><span class="meta-pill">30–35分钟</span><span class="meta-pill">${escapeHtml(plan.article.focus)}</span></div>
+    `;
+    renderAdvancedReadingStats();
+    renderAdvancedReadingRoadmap(currentDay);
+  }
+
+  function renderAdvancedReadingStats() {
+    const attempts = Object.values(state.data.advancedReadingProgram.attempts);
+    const completedDays = countCompletedAdvancedReadingDays();
+    const completedArticles = Array.from({ length: 30 }, (_, index) => getAdvancedAttempt((index + 1) * 2)?.completedAt).filter(Boolean).length;
+    const responseCount = attempts.filter((attempt) => attempt.mode === "apply" && attempt.applicationText.trim()).length;
+    const streak = calculateAdvancedReadingStreak();
+    elements.statCompleted.textContent = String(completedDays);
+    elements.statCompletedLabel.textContent = "完成天数";
+    elements.statWords.textContent = String(completedArticles);
+    elements.statWordsLabel.textContent = "完成文章";
+    elements.statStreak.textContent = String(responseCount);
+    elements.statStreakLabel.textContent = "应用回答";
+    elements.headerStreak.textContent = `进阶连续 ${streak} 天`;
+    elements.headerProgress.textContent = `进阶 ${completedDays} / ${ADVANCED_READING_PLAN_DAYS}`;
+    const percent = Math.round((completedDays / ADVANCED_READING_PLAN_DAYS) * 100);
+    elements.progressBar.style.width = `${percent}%`;
+    elements.progressTrack.setAttribute("aria-label", `60天进阶阅读已完成${completedDays}天`);
+    elements.progressCopy.textContent = completedDays ? `已完成${percent}%，当前停在第${getCurrentAdvancedReadingDay()}天` : "开始第1篇精读后记录进阶阅读进度";
+  }
+
+  function renderAdvancedReadingRoadmap(currentDay) {
+    const completedDays = countCompletedAdvancedReadingDays();
+    elements.roadmapList.innerHTML = ADVANCED_MODULES.map((module, index) => {
+      const start = index * 10 + 1;
+      const end = start + 9;
+      const current = currentDay >= start && currentDay <= end && completedDays < ADVANCED_READING_PLAN_DAYS;
+      const done = completedDays >= end;
+      return `<li class="${current ? "is-current" : ""} ${done ? "is-done" : ""}"><span>${String(index + 1).padStart(2, "0")}</span><div><strong>${escapeHtml(module.title)}</strong><small>第${start}–${end}天 · 5篇文章</small></div></li>`;
+    }).join("");
+  }
+
   function renderReadingDashboard() {
     const plan = getReadingPlan();
     elements.dashboardTitle.textContent = "把英语练进工作里";
@@ -704,7 +930,7 @@
   }
 
   function renderReadingStats() {
-    const articleIds = state.manifest.filter((item) => item.type === "article").map((item) => item.id);
+    const articleIds = getFoundationArticles().map((item) => item.id);
     const completed = state.data.completed.filter((id) => articleIds.includes(id)).length;
     const streak = calculateReadingStreak();
     const completedDays = countCompletedReadingDays();
@@ -723,8 +949,13 @@
   }
 
   function startCurrentTraining() {
-    if (state.data.activeProgram === "reading") {
+    if (state.data.activeProgram === "readingFoundation") {
       openItem(getReadingPlan()?.article?.id);
+      return;
+    }
+    if (state.data.activeProgram === "readingAdvanced") {
+      if (!isAdvancedContentReady()) return;
+      openAdvancedReadingDay(isAdvancedReadingProgramComplete() ? ADVANCED_READING_PLAN_DAYS : getCurrentAdvancedReadingDay());
       return;
     }
     if (isWritingProgramComplete()) {
@@ -736,6 +967,135 @@
       saveProgress();
     }
     openWritingDay(getCurrentWritingDay());
+  }
+
+  function getAdvancedArticles() {
+    return state.manifest.filter((item) => item.type === "article" && item.track === "advanced").sort((a, b) => Number(a.order) - Number(b.order));
+  }
+
+  function getFoundationArticles() {
+    return state.manifest.filter((item) => item.type === "article" && item.track !== "advanced").sort((a, b) => Number(a.order) - Number(b.order));
+  }
+
+  function getAdvancedModuleTitle(moduleId) {
+    return ADVANCED_MODULES.find((module) => module.id === moduleId)?.title || "";
+  }
+
+  function resetAdvancedReadingProgram() {
+    if (state.data.activeProgram !== "readingAdvanced") return;
+    const confirmed = window.confirm("重置会删除60天进阶阅读任务和英文应用回答，但保留基础阅读、写作、词汇和资料库已读标记。确认继续吗？");
+    if (!confirmed) return;
+    const previous = cloneProgressData(state.data);
+    state.data.advancedReadingProgram = { startedAt: null, completedAt: null, attempts: {} };
+    state.currentAdvancedDay = 1;
+    if (!saveProgress()) {
+      state.data = previous;
+      return;
+    }
+    renderAll();
+    showView("dashboard");
+    showToast("进阶阅读进度已重置，其他训练数据未改变");
+  }
+
+  function isAdvancedContentReady() {
+    const articles = getAdvancedArticles();
+    return articles.length === 30 && articles.every((article, index) => ADVANCED_MODULES[Math.floor(index / 5)]?.id === article.module);
+  }
+
+  function getAdvancedReadingPlan(day) {
+    if (!Number.isInteger(day) || day < 1 || day > ADVANCED_READING_PLAN_DAYS || !isAdvancedContentReady()) return null;
+    const articles = getAdvancedArticles();
+    return {
+      day,
+      article: articles[Math.floor((day - 1) / 2)],
+      mode: ADVANCED_READING_MODES[(day - 1) % 2]
+    };
+  }
+
+  function getCurrentAdvancedReadingDay() {
+    for (let day = 1; day <= ADVANCED_READING_PLAN_DAYS; day += 1) {
+      if (!getAdvancedAttempt(day)?.completedAt) return day;
+    }
+    return ADVANCED_READING_PLAN_DAYS;
+  }
+
+  function getAdvancedAttempt(day) {
+    return state.data.advancedReadingProgram.attempts[String(day)] || null;
+  }
+
+  function ensureAdvancedAttempt(day, plan) {
+    const key = String(day);
+    if (!state.data.advancedReadingProgram.attempts[key]) {
+      state.data.advancedReadingProgram.attempts[key] = {
+        articleId: plan.article.id,
+        mode: plan.mode.id,
+        tasks: [],
+        applicationText: "",
+        startedAt: new Date().toISOString(),
+        updatedAt: null,
+        completedAt: null
+      };
+    }
+    return state.data.advancedReadingProgram.attempts[key];
+  }
+
+  function getAdvancedRequirementCount(plan, attempt) {
+    if (!plan || !attempt) return 0;
+    const taskCount = plan.mode.tasks.filter((task) => attempt.tasks.includes(task.id)).length;
+    return taskCount + (plan.mode.id === "apply" && countEnglishWords(attempt.applicationText) >= 40 ? 1 : 0);
+  }
+
+  function getAdvancedDashboardTasks(plan, attempt) {
+    const tasks = plan.mode.tasks.map((task) => ({
+      done: Boolean(attempt?.tasks.includes(task.id)),
+      label: task.label,
+      meta: task.time
+    }));
+    if (plan.mode.id === "apply") {
+      const words = countEnglishWords(attempt?.applicationText || "");
+      tasks.push({ done: words >= 40, label: "完成英文业务应用回答", meta: `${words}/40词` });
+    }
+    return tasks;
+  }
+
+  function countCompletedAdvancedReadingDays() {
+    return Array.from({ length: ADVANCED_READING_PLAN_DAYS }, (_, index) => getAdvancedAttempt(index + 1)?.completedAt).filter(Boolean).length;
+  }
+
+  function isAdvancedReadingProgramComplete() {
+    return countCompletedAdvancedReadingDays() === ADVANCED_READING_PLAN_DAYS;
+  }
+
+  function calculateAdvancedReadingStreak() {
+    const dates = new Set(Object.values(state.data.advancedReadingProgram.attempts).map((attempt) => attempt.completedAt).filter(Boolean).map((iso) => localDateKey(new Date(iso))));
+    return calculateDateSetStreak(dates);
+  }
+
+  async function openAdvancedReadingDay(day) {
+    const current = getCurrentAdvancedReadingDay();
+    const attemptExists = Boolean(getAdvancedAttempt(day));
+    if (!Number.isInteger(day) || day < 1 || day > ADVANCED_READING_PLAN_DAYS || (!attemptExists && day > current)) {
+      showToast("后续阅读会在当前任务完成后解锁");
+      return;
+    }
+    const plan = getAdvancedReadingPlan(day);
+    if (!plan) {
+      showToast("30篇进阶阅读内容尚未准备完成", 3200);
+      return;
+    }
+    const previous = cloneProgressData(state.data);
+    if (!state.data.advancedReadingProgram.startedAt) state.data.advancedReadingProgram.startedAt = new Date().toISOString();
+    state.currentAdvancedDay = day;
+    ensureAdvancedAttempt(day, plan);
+    if (!saveProgress()) {
+      state.data = previous;
+      return;
+    }
+    await openItem(plan.article.id, { resume: true, advancedDay: day });
+  }
+
+  function cloneProgressData(value) {
+    return JSON.parse(JSON.stringify(value));
   }
 
   function openCurrentWriting() {
@@ -995,6 +1355,7 @@
     if (document.hidden) {
       pauseWritingTimer();
       persistWritingDraft();
+      persistAdvancedResponse();
     } else if (state.currentView === "writing") {
       startWritingTimer();
     }
@@ -1252,7 +1613,7 @@
   }
 
   function onReadingTaskChange() {
-    if (state.data.activeProgram !== "reading") return;
+    if (state.data.activeProgram !== "readingFoundation") return;
     const today = localDateKey(new Date());
     state.data.daily[today] = Array.from(elements.dailyTaskList.querySelectorAll("input:checked")).map((input) => input.value);
     saveProgress();
@@ -1272,7 +1633,7 @@
   }
 
   function getReadingPlan(date = new Date()) {
-    const articles = state.manifest.filter((item) => item.type === "article");
+    const articles = getFoundationArticles();
     if (!articles.length) return null;
     const day = getReadingPlanDay(date);
     const articleIndex = Math.min(articles.length - 1, Math.floor((day - 1) / READING_DAY_MODES.length));
@@ -1322,9 +1683,13 @@
   function filteredItems() {
     return state.manifest.filter((item) => {
       const matchesLevel = state.activeLevel === "all" || item.level === state.activeLevel;
+      const matchesModule = state.activeModule === "all" || item.module === state.activeModule;
+      const isComplete = state.data.completed.includes(item.id);
+      const matchesCompletion = state.completionFilter === "all" ||
+        (item.type === "article" && (state.completionFilter === "complete" ? isComplete : !isComplete));
       const tags = Array.isArray(item.tags) ? item.tags.join(" ") : "";
-      const haystack = `${item.title || ""} ${item.titleZh || ""} ${tags} ${item.focus || ""}`.toLowerCase();
-      return matchesLevel && (!state.query || haystack.includes(state.query));
+      const haystack = `${item.title || ""} ${item.titleZh || ""} ${tags} ${item.focus || ""} ${getAdvancedModuleTitle(item.module)}`.toLowerCase();
+      return matchesLevel && matchesModule && matchesCompletion && (!state.query || haystack.includes(state.query));
     });
   }
 
@@ -1339,14 +1704,15 @@
     const items = filteredItems();
     elements.libraryList.innerHTML = items.length ? items.map((item) => {
       const done = state.data.completed.includes(item.id);
-      return `<button class="library-item ${state.currentItem?.id === item.id ? "is-current" : ""}" type="button" data-id="${escapeHtml(item.id)}"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.type === "framework" ? "学习框架" : `${item.level} · ${item.minutes}分钟`)}${done ? " · 已完成" : ""}</small></button>`;
+      const moduleTitle = getAdvancedModuleTitle(item.module);
+      return `<button class="library-item ${state.currentItem?.id === item.id ? "is-current" : ""}" type="button" data-id="${escapeHtml(item.id)}"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.type === "framework" ? "学习框架" : `${item.level} · ${item.minutes}分钟${moduleTitle ? ` · ${moduleTitle}` : ""}`)}${done ? " · 已完成" : ""}</small></button>`;
     }).join("") : '<p class="empty-list">当前筛选下没有文章</p>';
     elements.libraryList.querySelectorAll("[data-id]").forEach((button) => button.addEventListener("click", () => openItem(button.dataset.id)));
     const articles = items.filter((item) => item.type === "article");
     elements.libraryCards.innerHTML = articles.length ? articles.map((item) => `
       <button class="article-card ${state.data.completed.includes(item.id) ? "is-complete" : ""}" type="button" data-id="${escapeHtml(item.id)}">
         <span class="article-card-number">${escapeHtml(item.order)}</span>
-        <span><span class="card-title">${escapeHtml(item.title)}</span><span class="card-summary">${escapeHtml(item.summary)}</span><span class="card-meta"><span>${escapeHtml(item.level)}</span><span>${item.minutes}分钟</span><span>${escapeHtml(item.focus)}</span></span></span>
+        <span><span class="card-title">${escapeHtml(item.title)}</span><span class="card-summary">${escapeHtml(item.summary)}</span><span class="card-meta"><span>${escapeHtml(item.level)}</span><span>${item.minutes}分钟</span><span>${escapeHtml(getAdvancedModuleTitle(item.module) || item.focus)}</span></span></span>
       </button>
     `).join("") : '<p class="empty-list">当前筛选下没有数据分析文章</p>';
     elements.libraryCards.querySelectorAll("[data-id]").forEach((button) => button.addEventListener("click", () => openItem(button.dataset.id)));
@@ -1356,7 +1722,10 @@
     const item = state.manifest.find((entry) => entry.id === id);
     if (!item) return;
     state.currentItem = item;
+    state.currentApplicationPrompt = "";
+    state.currentAdvancedDay = Number.isInteger(options.advancedDay) ? options.advancedDay : null;
     state.articleLoaded = false;
+    elements.advancedPracticePanel.hidden = true;
     state.data.lastOpened = id;
     const savedReader = options.resume && state.data.lastReader?.itemId === id ? state.data.lastReader : null;
     state.activeSection = item.type === "article" && savedReader?.section ? savedReader.section : "English Original";
@@ -1381,12 +1750,19 @@
         state.currentSections = splitSections(markdown);
         const missing = ARTICLE_SECTIONS.filter((section) => !state.currentSections[section]);
         if (missing.length) throw new Error(`Missing article sections: ${missing.join(", ")}`);
+        if (item.track === "advanced") {
+          state.currentApplicationPrompt = extractAdvancedApplicationPrompt(state.currentSections["Reading Questions"]);
+          if (!state.currentApplicationPrompt || !state.currentSections["Reading Questions"].includes("### Answer Key")) {
+            throw new Error("Advanced article is missing Workplace Application or Answer Key");
+          }
+        }
         elements.readerToolbar.hidden = false;
         renderSectionTabs();
         renderArticleSection();
       }
       state.articleLoaded = true;
       [elements.completeButton, elements.completeButtonBottom].forEach((button) => { button.disabled = false; });
+      if (Number.isInteger(state.currentAdvancedDay)) renderAdvancedPracticePanel();
       renderLibrary();
       if (savedReader?.scrollY) window.requestAnimationFrame(() => window.scrollTo({ top: savedReader.scrollY, behavior: "auto" }));
     } catch (error) {
@@ -1453,6 +1829,149 @@
       elements.readerContent.innerHTML = `<div class="markdown-body">${renderMarkdown(source)}</div>`;
     }
     if (state.activeSection === "Vocabulary") attachVocabularyButtons();
+  }
+
+  function renderAdvancedPracticePanel() {
+    const plan = getAdvancedReadingPlan(state.currentAdvancedDay);
+    const attempt = getAdvancedAttempt(state.currentAdvancedDay);
+    if (!plan || !attempt || plan.article.id !== state.currentItem?.id || !state.articleLoaded) {
+      elements.advancedPracticePanel.hidden = true;
+      return;
+    }
+    const complete = Boolean(attempt.completedAt);
+    elements.advancedPracticePanel.hidden = false;
+    elements.advancedPracticeKicker.textContent = `DAY ${String(plan.day).padStart(2, "0")} · ${plan.mode.label}`;
+    elements.advancedPracticeTitle.textContent = plan.mode.title;
+    elements.advancedPracticeCopy.textContent = complete ? "本日训练已经完成，记录保持只读" : plan.mode.description;
+    elements.advancedTaskList.innerHTML = plan.mode.tasks.map((task) => `
+      <label class="daily-task">
+        <input type="checkbox" value="${escapeHtml(task.id)}" ${attempt.tasks.includes(task.id) ? "checked" : ""} ${complete ? "disabled" : ""}>
+        <span>${escapeHtml(task.label)}</span><small>${escapeHtml(task.time)}</small>
+      </label>
+    `).join("");
+    elements.advancedResponseGroup.hidden = plan.mode.id !== "apply";
+    if (plan.mode.id === "apply") {
+      elements.advancedResponsePrompt.innerHTML = renderMarkdown(state.currentApplicationPrompt);
+      const words = countEnglishWords(attempt.applicationText);
+      elements.advancedTaskList.insertAdjacentHTML("beforeend", `<div class="daily-task task-requirement ${words >= 40 ? "is-requirement-met" : ""}"><span class="task-mark">${words >= 40 ? "✓" : "·"}</span><span>完成英文业务应用回答</span><small>${words}/40词</small></div>`);
+      elements.advancedResponse.value = attempt.applicationText;
+      elements.advancedResponse.disabled = complete;
+      updateAdvancedResponseStatus(attempt.applicationText);
+    } else {
+      elements.advancedResponse.value = "";
+      elements.advancedResponse.disabled = true;
+    }
+    elements.advancedSaveIndicator.textContent = complete ? "已完成" : attempt.updatedAt ? "已保存到当前浏览器" : "任务未修改";
+    elements.completeAdvancedDayButton.disabled = complete || !isAdvancedAttemptReady(plan, attempt);
+    elements.completeAdvancedDayButton.innerHTML = complete ? '本日已完成 <span aria-hidden="true">✓</span>' : '完成今日训练 <span aria-hidden="true">→</span>';
+  }
+
+  function extractAdvancedApplicationPrompt(source) {
+    const marker = "### Workplace Application";
+    const start = source.indexOf(marker);
+    if (start < 0) return "";
+    const afterMarker = source.slice(start + marker.length);
+    return afterMarker.split("### Answer Key")[0].trim();
+  }
+
+  function onAdvancedTaskChange() {
+    const plan = getAdvancedReadingPlan(state.currentAdvancedDay);
+    const attempt = getAdvancedAttempt(state.currentAdvancedDay);
+    if (!plan || !attempt || attempt.completedAt) return;
+    const previous = cloneProgressData(state.data);
+    attempt.tasks = Array.from(elements.advancedTaskList.querySelectorAll("input:checked")).map((input) => input.value);
+    attempt.updatedAt = new Date().toISOString();
+    if (!saveProgress()) {
+      state.data = previous;
+      renderAdvancedPracticePanel();
+      return;
+    }
+    elements.advancedSaveIndicator.textContent = "已保存到当前浏览器";
+    elements.completeAdvancedDayButton.disabled = !isAdvancedAttemptReady(plan, attempt);
+  }
+
+  function onAdvancedResponseInput() {
+    const value = safeText(elements.advancedResponse.value, MAX_ADVANCED_RESPONSE_LENGTH);
+    if (elements.advancedResponse.value !== value) elements.advancedResponse.value = value;
+    updateAdvancedResponseStatus(value);
+    elements.advancedSaveIndicator.textContent = "正在保存…";
+    elements.completeAdvancedDayButton.disabled = true;
+    clearTimeout(onAdvancedResponseInput.timer);
+    onAdvancedResponseInput.timer = window.setTimeout(persistAdvancedResponse, 400);
+  }
+
+  function persistAdvancedResponse() {
+    clearTimeout(onAdvancedResponseInput.timer);
+    const plan = getAdvancedReadingPlan(state.currentAdvancedDay);
+    const attempt = getAdvancedAttempt(state.currentAdvancedDay);
+    if (!plan || plan.mode.id !== "apply" || !attempt || attempt.completedAt || !elements.advancedResponse) return true;
+    const value = safeText(elements.advancedResponse.value, MAX_ADVANCED_RESPONSE_LENGTH);
+    if (attempt.applicationText === value && attempt.updatedAt) {
+      elements.advancedSaveIndicator.textContent = "已保存到当前浏览器";
+      elements.completeAdvancedDayButton.disabled = !isAdvancedAttemptReady(plan, attempt);
+      return true;
+    }
+    const previousText = attempt.applicationText;
+    const previousUpdatedAt = attempt.updatedAt;
+    attempt.applicationText = value;
+    attempt.updatedAt = new Date().toISOString();
+    if (!saveProgress()) {
+      attempt.applicationText = previousText;
+      attempt.updatedAt = previousUpdatedAt;
+      elements.advancedSaveIndicator.textContent = "尚未保存，请继续编辑后重试";
+      elements.completeAdvancedDayButton.disabled = true;
+      return false;
+    }
+    elements.advancedSaveIndicator.textContent = "已自动保存到当前浏览器";
+    elements.completeAdvancedDayButton.disabled = !isAdvancedAttemptReady(plan, attempt);
+    renderAdvancedApplicationRequirement(attempt);
+    return true;
+  }
+
+  function updateAdvancedResponseStatus(value) {
+    const words = countEnglishWords(value);
+    elements.advancedResponseCount.textContent = String(words);
+    elements.advancedResponseHint.textContent = words < 40 ? `还需${40 - words}词` : words > 80 ? "已超过建议80词，可继续完成" : "已达到建议范围";
+  }
+
+  function renderAdvancedApplicationRequirement(attempt) {
+    const requirement = elements.advancedTaskList.querySelector(".task-requirement");
+    if (!requirement) return;
+    const words = countEnglishWords(attempt.applicationText);
+    requirement.classList.toggle("is-requirement-met", words >= 40);
+    requirement.querySelector(".task-mark").textContent = words >= 40 ? "✓" : "·";
+    requirement.querySelector("small").textContent = `${words}/40词`;
+  }
+
+  function isAdvancedAttemptReady(plan, attempt) {
+    if (!plan || !attempt || attempt.completedAt) return false;
+    const tasksComplete = plan.mode.tasks.every((task) => attempt.tasks.includes(task.id));
+    return tasksComplete && (plan.mode.id !== "apply" || countEnglishWords(attempt.applicationText) >= 40);
+  }
+
+  function completeAdvancedReadingDay() {
+    const plan = getAdvancedReadingPlan(state.currentAdvancedDay);
+    const attempt = getAdvancedAttempt(state.currentAdvancedDay);
+    if (!plan || !attempt || attempt.completedAt) return;
+    if (plan.mode.id === "apply" && !persistAdvancedResponse()) return;
+    if (!isAdvancedAttemptReady(plan, attempt)) {
+      const words = countEnglishWords(attempt.applicationText);
+      showToast(plan.mode.id === "apply" && words < 40 ? `英文回答还需要${40 - words}词` : "完成全部训练项目后才能进入下一天", 2800);
+      return;
+    }
+    const previous = cloneProgressData(state.data);
+    const completedAt = new Date().toISOString();
+    attempt.completedAt = completedAt;
+    attempt.updatedAt = completedAt;
+    if (plan.mode.id === "apply" && !state.data.completed.includes(plan.article.id)) state.data.completed.push(plan.article.id);
+    if (countCompletedAdvancedReadingDays() === ADVANCED_READING_PLAN_DAYS) state.data.advancedReadingProgram.completedAt = completedAt;
+    if (!saveProgress()) {
+      state.data = previous;
+      renderAdvancedPracticePanel();
+      return;
+    }
+    showToast(plan.day === ADVANCED_READING_PLAN_DAYS ? "60天进阶阅读已完成" : `第${plan.day}天已完成`);
+    showView("dashboard");
   }
 
   function splitSections(markdown) {
@@ -1553,7 +2072,7 @@
     saveProgress();
     button.classList.toggle("is-saved", !exists);
     button.textContent = exists ? "记住" : "已掌握";
-    if (state.data.activeProgram === "reading") renderReadingStats();
+    if (state.data.activeProgram === "readingFoundation") renderReadingStats();
     showToast(exists ? `已移出词汇：${word}` : `已掌握：${word}`);
   }
 
@@ -1573,7 +2092,7 @@
     saveProgress();
     updateCompleteButtons();
     renderLibrary();
-    if (state.data.activeProgram === "reading") renderReadingStats();
+    if (state.data.activeProgram === "readingFoundation") renderReadingStats();
     showToast(exists ? "已取消完成标记" : "本篇已完成");
   }
 
@@ -1612,6 +2131,7 @@
   function exportProgress() {
     pauseWritingTimer();
     persistWritingDraft();
+    persistAdvancedResponse();
     saveReaderPosition({ type: "beforeunload" });
     const payload = { app: "Metric English", schemaVersion: STORAGE_SCHEMA, exportedAt: new Date().toISOString(), data: state.data };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -1640,11 +2160,20 @@
       const imported = sanitizeProgress(parsed?.data || parsed);
       if (!window.confirm("导入会覆盖当前浏览器中的阅读、写作和草稿进度。确认继续吗？")) return;
       pauseWritingTimer();
+      persistAdvancedResponse();
+      const previous = state.data;
       state.data = imported;
       state.fontScale = imported.fontScale;
       document.documentElement.style.setProperty("--reader-scale", state.fontScale);
       state.data.lastView = "dashboard";
-      saveProgress();
+      if (!saveProgress()) {
+        state.data = previous;
+        state.fontScale = previous.fontScale;
+        document.documentElement.style.setProperty("--reader-scale", state.fontScale);
+        return;
+      }
+      state.currentAdvancedDay = getCurrentAdvancedReadingDay();
+      elements.advancedPracticePanel.hidden = true;
       renderAll();
       showView("dashboard");
       showToast("学习进度导入成功", 2800);

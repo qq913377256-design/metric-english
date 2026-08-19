@@ -48,6 +48,28 @@
             <button class="filter-chip" type="button" data-level="B1">B1</button>
             <button class="filter-chip" type="button" data-level="B2">B2</button>
           </div>
+          <div class="filter-selects">
+            <label class="select-field">
+              <span>主题模块</span>
+              <select id="moduleFilter">
+                <option value="all">全部模块</option>
+                <option value="sql">SQL与数据建模</option>
+                <option value="metrics">指标与产品分析</option>
+                <option value="experiments">实验与统计</option>
+                <option value="communication">报告与沟通</option>
+                <option value="quality">数据质量与治理</option>
+                <option value="strategy">策略与管理层表达</option>
+              </select>
+            </label>
+            <label class="select-field">
+              <span>完成状态</span>
+              <select id="statusFilter">
+                <option value="all">全部状态</option>
+                <option value="incomplete">未完成</option>
+                <option value="complete">已完成</option>
+              </select>
+            </label>
+          </div>
         </div>
 
         <div class="library-list" id="libraryList" aria-live="polite"></div>
@@ -60,7 +82,8 @@
         <section class="dashboard-view" id="dashboardView" aria-labelledby="dashboardTitle">
           <div class="program-switch" role="group" aria-label="训练阶段">
             <button type="button" data-program="writing" aria-pressed="true"><span>V1.2</span><strong>职场写作</strong></button>
-            <button type="button" data-program="reading" aria-pressed="false"><span>V1.1</span><strong>阅读基础</strong></button>
+            <button type="button" data-program="readingAdvanced" aria-pressed="false"><span>V1.3 NEW</span><strong>进阶阅读</strong></button>
+            <button type="button" data-program="readingFoundation" aria-pressed="false"><span>V1.1</span><strong>阅读基础</strong></button>
           </div>
 
           <div class="dashboard-hero">
@@ -109,6 +132,7 @@
               <div class="data-actions" aria-label="学习数据备份">
                 <button class="secondary-button" id="exportProgressButton" type="button">导出进度</button>
                 <button class="secondary-button" id="importProgressButton" type="button">导入进度</button>
+                <button class="secondary-button danger-button" id="resetAdvancedButton" type="button" hidden>重置进阶阅读</button>
                 <input id="importProgressInput" type="file" accept="application/json,.json" hidden>
               </div>
             </section>
@@ -147,7 +171,7 @@
           <div class="page-heading">
             <p class="eyebrow">READING LIBRARY</p>
             <h1 id="libraryTitle">数据分析英语资料库</h1>
-            <p>10篇原创文章从A2过渡到B2，覆盖报表、指标、实验、数据质量和业务沟通</p>
+            <p>40篇原创文章从A2过渡到B2，其中30篇进阶材料覆盖六个数据分析工作模块</p>
           </div>
           <div class="library-cards" id="libraryCards"></div>
         </section>
@@ -174,6 +198,30 @@
             </div>
           </div>
           <div class="reader-paper" id="readerContent" role="tabpanel" aria-live="polite"><div class="loading-state">正在加载阅读材料…</div></div>
+          <section class="advanced-practice-panel" id="advancedPracticePanel" hidden aria-labelledby="advancedPracticeTitle">
+            <div class="advanced-practice-heading">
+              <div>
+                <p class="section-kicker" id="advancedPracticeKicker">ADVANCED READING</p>
+                <h2 id="advancedPracticeTitle">今日训练</h2>
+                <p id="advancedPracticeCopy">完成全部项目后进入下一天</p>
+              </div>
+              <span class="save-indicator" id="advancedSaveIndicator" role="status" aria-live="polite">任务未修改</span>
+            </div>
+            <div class="advanced-task-list" id="advancedTaskList"></div>
+            <div class="advanced-response-group" id="advancedResponseGroup" hidden>
+              <div class="response-heading">
+                <label class="editor-label" for="advancedResponse">Workplace application</label>
+                <span>建议40–80词</span>
+              </div>
+              <div class="markdown-body advanced-response-prompt" id="advancedResponsePrompt"></div>
+              <textarea id="advancedResponse" maxlength="3000" spellcheck="true" placeholder="Write your workplace response in English…"></textarea>
+              <div class="editor-status" aria-live="polite">
+                <span><strong id="advancedResponseCount">0</strong> words</span>
+                <span id="advancedResponseHint">还需40词</span>
+              </div>
+            </div>
+            <button class="primary-button" id="completeAdvancedDayButton" type="button" disabled>完成今日训练 <span aria-hidden="true">→</span></button>
+          </section>
           <footer class="reader-footer">
             <button class="complete-button" id="completeButtonBottom" type="button">完成本篇阅读</button>
             <p>先复述文章主旨，再查看翻译和参考答案</p>

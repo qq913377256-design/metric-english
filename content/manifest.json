@@ -141,5 +141,155 @@
     "focus": "业务表达",
     "summary": "把数据发现写成包含证据、影响、行动和风险的业务建议",
     "tags": ["insight", "recommendation", "impact", "沟通"]
+  },
+  {
+    "id": "join-grain", "type": "article", "track": "advanced", "module": "sql", "order": "11",
+    "title": "Choose the Right Grain Before You Join", "titleZh": "连接数据前先确定粒度", "path": "./content/articles/11-join-grain.md",
+    "level": "B1", "minutes": 16, "focus": "数据粒度", "summary": "通过订单与客户表的案例，理解错误粒度如何放大指标", "tags": ["SQL", "grain", "join", "modeling"]
+  },
+  {
+    "id": "star-schema", "type": "article", "track": "advanced", "module": "sql", "order": "12",
+    "title": "Why a Star Schema Makes Metrics Clearer", "titleZh": "星型模型为何让指标更清晰", "path": "./content/articles/12-star-schema.md",
+    "level": "B1", "minutes": 16, "focus": "星型模型", "summary": "用事实表和维度表建立可复用、可解释的指标模型", "tags": ["star schema", "fact", "dimension", "metric"]
+  },
+  {
+    "id": "nulls-and-joins", "type": "article", "track": "advanced", "module": "sql", "order": "13",
+    "title": "Null Values and Join Types", "titleZh": "空值与连接类型", "path": "./content/articles/13-nulls-and-joins.md",
+    "level": "B1", "minutes": 16, "focus": "连接与空值", "summary": "选择正确的连接方式，并把缺失匹配当作需要解释的业务信号", "tags": ["null", "inner join", "left join", "SQL"]
+  },
+  {
+    "id": "slowly-changing-dimensions", "type": "article", "track": "advanced", "module": "sql", "order": "14",
+    "title": "Tracking Changes with Slowly Changing Dimensions", "titleZh": "用缓慢变化维度保留历史", "path": "./content/articles/14-slowly-changing-dimensions.md",
+    "level": "B1", "minutes": 17, "focus": "历史维度", "summary": "理解覆盖更新与保留历史对区域、套餐等分析结果的影响", "tags": ["SCD", "history", "dimension", "warehouse"]
+  },
+  {
+    "id": "sql-performance-meaning", "type": "article", "track": "advanced", "module": "sql", "order": "15",
+    "title": "Faster SQL Without Losing Business Meaning", "titleZh": "优化SQL但不丢业务含义", "path": "./content/articles/15-sql-performance-meaning.md",
+    "level": "B1", "minutes": 17, "focus": "查询优化", "summary": "在提高查询速度时保留指标口径、校验边界与可读性", "tags": ["SQL", "performance", "validation", "semantics"]
+  },
+  {
+    "id": "north-star-guardrails", "type": "article", "track": "advanced", "module": "metrics", "order": "16",
+    "title": "One North Star Needs Guardrails", "titleZh": "北极星指标需要护栏指标", "path": "./content/articles/16-north-star-guardrails.md",
+    "level": "B1", "minutes": 17, "focus": "指标体系", "summary": "用北极星指标指明价值方向，用护栏指标防止局部优化", "tags": ["north star", "guardrail", "product", "metric"]
+  },
+  {
+    "id": "funnel-dropoff", "type": "article", "track": "advanced", "module": "metrics", "order": "17",
+    "title": "Find the Real Funnel Drop-off", "titleZh": "找到真正的漏斗流失点", "path": "./content/articles/17-funnel-dropoff.md",
+    "level": "B1", "minutes": 17, "focus": "漏斗分析", "summary": "统一漏斗定义并按用户与设备分群，定位可行动的流失环节", "tags": ["funnel", "conversion", "drop-off", "segment"]
+  },
+  {
+    "id": "retention-cohorts", "type": "article", "track": "advanced", "module": "metrics", "order": "18",
+    "title": "Retention Changes Across Cohorts", "titleZh": "不同同期群的留存变化", "path": "./content/articles/18-retention-cohorts.md",
+    "level": "B1", "minutes": 17, "focus": "同期群留存", "summary": "按首次使用时间比较留存曲线，区分结构变化与产品影响", "tags": ["retention", "cohort", "product", "trend"]
+  },
+  {
+    "id": "metric-contract", "type": "article", "track": "advanced", "module": "metrics", "order": "19",
+    "title": "A Metric Definition Is a Contract", "titleZh": "指标定义是一份契约", "path": "./content/articles/19-metric-contract.md",
+    "level": "B1", "minutes": 17, "focus": "指标口径", "summary": "把名称、公式、范围、刷新频率和负责人写成可执行的指标契约", "tags": ["metric", "definition", "owner", "governance"]
+  },
+  {
+    "id": "segments-reverse-average", "type": "article", "track": "advanced", "module": "metrics", "order": "20",
+    "title": "Segments Can Reverse the Average", "titleZh": "分群结果可能反转总体平均", "path": "./content/articles/20-segments-reverse-average.md",
+    "level": "B1", "minutes": 18, "focus": "分群分析", "summary": "识别总体平均被用户结构变化误导的情况，并清楚解释辛普森悖论", "tags": ["segment", "average", "Simpson's paradox", "mix"]
+  },
+  {
+    "id": "sample-size", "type": "article", "track": "advanced", "module": "experiments", "order": "21",
+    "title": "Why Sample Size Comes Before Launch", "titleZh": "为何实验前先算样本量", "path": "./content/articles/21-sample-size.md",
+    "level": "B1", "minutes": 18, "focus": "样本量", "summary": "在上线前明确基线、最小可检测效果、把握度与实验周期", "tags": ["experiment", "sample size", "power", "MDE"]
+  },
+  {
+    "id": "significance-vs-impact", "type": "article", "track": "advanced", "module": "experiments", "order": "22",
+    "title": "Statistical Significance Is Not Business Impact", "titleZh": "统计显著不等于业务影响", "path": "./content/articles/22-significance-vs-impact.md",
+    "level": "B1", "minutes": 18, "focus": "实验解读", "summary": "同时报告置信度、效果大小、成本与业务价值", "tags": ["significance", "effect size", "impact", "experiment"]
+  },
+  {
+    "id": "experiment-peeking", "type": "article", "track": "advanced", "module": "experiments", "order": "23",
+    "title": "Peeking Can Create a False Winner", "titleZh": "频繁偷看可能制造虚假赢家", "path": "./content/articles/23-experiment-peeking.md",
+    "level": "B1", "minutes": 18, "focus": "实验纪律", "summary": "理解反复查看并提前停止实验为何增加假阳性风险", "tags": ["peeking", "false positive", "experiment", "stopping rule"]
+  },
+  {
+    "id": "experiment-guardrails", "type": "article", "track": "advanced", "module": "experiments", "order": "24",
+    "title": "Guardrail Metrics Protect the Customer", "titleZh": "护栏指标保护客户体验", "path": "./content/articles/24-experiment-guardrails.md",
+    "level": "B1", "minutes": 18, "focus": "实验护栏", "summary": "在追求主指标提升时监控投诉、延迟和取消等副作用", "tags": ["guardrail", "customer", "experiment", "risk"]
+  },
+  {
+    "id": "correlation-causation", "type": "article", "track": "advanced", "module": "experiments", "order": "25",
+    "title": "Correlation Does Not Explain the Cause", "titleZh": "相关性不能解释原因", "path": "./content/articles/25-correlation-causation.md",
+    "level": "B1", "minutes": 18, "focus": "因果判断", "summary": "用混杂因素、时间顺序和验证设计避免把相关关系写成因果结论", "tags": ["correlation", "causation", "confounder", "evidence"]
+  },
+  {
+    "id": "executive-dashboard", "type": "article", "track": "advanced", "module": "communication", "order": "26",
+    "title": "Build an Executive Dashboard Around Decisions", "titleZh": "围绕决策设计管理层仪表盘", "path": "./content/articles/26-executive-dashboard.md",
+    "level": "B1", "minutes": 18, "focus": "管理层看板", "summary": "从决策问题出发安排指标层级、异常说明和行动入口", "tags": ["dashboard", "executive", "decision", "design"]
+  },
+  {
+    "id": "variance-explanation", "type": "article", "track": "advanced", "module": "communication", "order": "27",
+    "title": "Explain a Variance Without Guessing", "titleZh": "不靠猜测解释差异", "path": "./content/articles/27-variance-explanation.md",
+    "level": "B1", "minutes": 18, "focus": "差异分析", "summary": "把事实、贡献因素、未验证解释和下一步调查分开表达", "tags": ["variance", "driver", "evidence", "communication"]
+  },
+  {
+    "id": "data-story-sequence", "type": "article", "track": "advanced", "module": "communication", "order": "28",
+    "title": "A Data Story Needs a Clear Sequence", "titleZh": "数据故事需要清晰顺序", "path": "./content/articles/28-data-story-sequence.md",
+    "level": "B1", "minutes": 18, "focus": "数据叙事", "summary": "用背景、变化、原因、影响和行动构建可跟随的数据故事", "tags": ["storytelling", "sequence", "insight", "action"]
+  },
+  {
+    "id": "clarify-report-request", "type": "article", "track": "advanced", "module": "communication", "order": "29",
+    "title": "Clarify the Request Before Building the Report", "titleZh": "做报告前先澄清需求", "path": "./content/articles/29-clarify-report-request.md",
+    "level": "B1", "minutes": 18, "focus": "需求澄清", "summary": "确认决策、受众、范围、截止时间和成功标准，减少返工", "tags": ["request", "stakeholder", "scope", "report"]
+  },
+  {
+    "id": "weekly-action-memo", "type": "article", "track": "advanced", "module": "communication", "order": "30",
+    "title": "Write a Weekly Memo That Leads to Action", "titleZh": "写一份推动行动的周报", "path": "./content/articles/30-weekly-action-memo.md",
+    "level": "B1", "minutes": 18, "focus": "周报写作", "summary": "把周报从数字清单改成结论、证据、风险与行动责任人", "tags": ["weekly memo", "action", "owner", "communication"]
+  },
+  {
+    "id": "data-contracts", "type": "article", "track": "advanced", "module": "quality", "order": "31",
+    "title": "Data Contracts Prevent Silent Breaks", "titleZh": "数据契约防止静默故障", "path": "./content/articles/31-data-contracts.md",
+    "level": "B2", "minutes": 19, "focus": "数据契约", "summary": "明确字段、类型、质量规则与变更通知，让上下游共同承担可靠性", "tags": ["data contract", "schema", "quality", "ownership"]
+  },
+  {
+    "id": "freshness-completeness", "type": "article", "track": "advanced", "module": "quality", "order": "32",
+    "title": "Freshness and Completeness Are Different", "titleZh": "及时性与完整性并不相同", "path": "./content/articles/32-freshness-completeness.md",
+    "level": "B2", "minutes": 19, "focus": "质量监控", "summary": "分别监控数据到达时间与记录覆盖率，避免把准时的残缺数据当成健康数据", "tags": ["freshness", "completeness", "SLA", "monitoring"]
+  },
+  {
+    "id": "data-lineage", "type": "article", "track": "advanced", "module": "quality", "order": "33",
+    "title": "Data Lineage Shortens Incident Response", "titleZh": "数据血缘缩短故障响应", "path": "./content/articles/33-data-lineage.md",
+    "level": "B2", "minutes": 19, "focus": "数据血缘", "summary": "追踪源表、转换和下游资产，快速判断故障影响范围", "tags": ["lineage", "incident", "dependency", "impact"]
+  },
+  {
+    "id": "privacy-minimization", "type": "article", "track": "advanced", "module": "quality", "order": "34",
+    "title": "Collect Less Data to Reduce Privacy Risk", "titleZh": "少收集数据以降低隐私风险", "path": "./content/articles/34-privacy-minimization.md",
+    "level": "B2", "minutes": 19, "focus": "数据最小化", "summary": "从分析目的反推必要字段、保留周期和访问范围", "tags": ["privacy", "minimization", "access", "retention"]
+  },
+  {
+    "id": "metric-reconciliation", "type": "article", "track": "advanced", "module": "quality", "order": "35",
+    "title": "Reconcile Metrics Before the Meeting", "titleZh": "开会前先核对指标", "path": "./content/articles/35-metric-reconciliation.md",
+    "level": "B2", "minutes": 19, "focus": "指标核对", "summary": "系统比较口径、时区、过滤条件与延迟，解决跨报表数字冲突", "tags": ["reconciliation", "metric", "definition", "trust"]
+  },
+  {
+    "id": "opportunity-sizing", "type": "article", "track": "advanced", "module": "strategy", "order": "36",
+    "title": "Size an Opportunity with Transparent Assumptions", "titleZh": "用透明假设估算机会", "path": "./content/articles/36-opportunity-sizing.md",
+    "level": "B2", "minutes": 20, "focus": "机会估算", "summary": "拆解目标人群、可触达率、转化率和单位价值，并给出可审查范围", "tags": ["opportunity", "assumption", "sizing", "scenario"]
+  },
+  {
+    "id": "scenario-forecast", "type": "article", "track": "advanced", "module": "strategy", "order": "37",
+    "title": "Forecast with Scenarios, Not One Number", "titleZh": "用情景而非单一数字预测", "path": "./content/articles/37-scenario-forecast.md",
+    "level": "B2", "minutes": 20, "focus": "情景预测", "summary": "用基准、上行和下行情景连接假设、触发条件与管理动作", "tags": ["forecast", "scenario", "assumption", "risk"]
+  },
+  {
+    "id": "impact-effort", "type": "article", "track": "advanced", "module": "strategy", "order": "38",
+    "title": "Prioritize Recommendations by Impact and Effort", "titleZh": "按影响与投入排列建议", "path": "./content/articles/38-impact-effort.md",
+    "level": "B2", "minutes": 20, "focus": "建议排序", "summary": "把预期影响、信心、投入和依赖写清，让建议可以比较与执行", "tags": ["prioritization", "impact", "effort", "recommendation"]
+  },
+  {
+    "id": "three-layer-summary", "type": "article", "track": "advanced", "module": "strategy", "order": "39",
+    "title": "Write an Executive Summary in Three Layers", "titleZh": "用三层结构写管理层摘要", "path": "./content/articles/39-three-layer-summary.md",
+    "level": "B2", "minutes": 20, "focus": "管理层摘要", "summary": "依次给出结论、证据与决策请求，让不同深度的读者快速获取信息", "tags": ["executive summary", "decision", "evidence", "writing"]
+  },
+  {
+    "id": "decision-uncertainty", "type": "article", "track": "advanced", "module": "strategy", "order": "40",
+    "title": "Make a Decision Under Uncertainty", "titleZh": "在不确定性下做决策", "path": "./content/articles/40-decision-uncertainty.md",
+    "level": "B2", "minutes": 20, "focus": "决策分析", "summary": "比较可逆性、信息价值、风险上限与等待成本，在证据不完整时推进决策", "tags": ["decision", "uncertainty", "risk", "trade-off"]
   }
 ]
